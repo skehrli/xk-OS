@@ -520,10 +520,10 @@ int
 sys_fstat(void);
 ```
 
-#### Question #9
+#### Question #10
 For each member of the project team, how many hours did you spend on this lab?
 
-#### Question #10
+#### Question #11
 What did you like or dislike about this lab? Is there anything you wish you knew earlier?
 
 ## Testing and hand-in
