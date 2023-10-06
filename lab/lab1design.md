@@ -50,6 +50,10 @@ will be the first element, a pointer into the global file table that is the stdi
   - Finds an open spot in the process open file table and has it point the global open file table entry.
   - Finds an open entry in the global open file table and allocates a new file_info struct
     for the process open file table spot to point to.
+  - Open the file through the file system.
+  - If the file is an actual file (see `stat.h` for file types), it is only allowed to open with `O_RDONLY` mode.
+    Attemp to open it with any writable modes should return an error.
+  - If the file is a device file, it is allowed to be opened with writable permissions.
   - Returns the index into the process open file table as the file descriptor, or -1 on failure.
 - `file_close`:
   - Release the file from this process, will have to clean up if this is the last reference.
