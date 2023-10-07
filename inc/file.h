@@ -18,6 +18,19 @@ struct inode {
   struct extent data;
 };
 
+// Metadata for an open file
+// - the underlying inode
+// - current offset of the file (how far have we read)
+// - access mode of the open file (identifies the file as readable, writable and so on)
+// - reference count of the struct
+struct file_info {
+  struct inode *inode;
+  int offset;
+  int access_mode;
+  int refcount;
+};
+
+
 // table mapping device ID (devid) to device functions
 struct devsw {
   int (*read)(struct inode *, char *, int);
