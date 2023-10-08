@@ -39,6 +39,11 @@ int file_open(char *path, int access_mode) {
         ++proc_fd_index;   
     }
 
+    // Error if the process file table is full
+    if (proc_fd_index == NOFILE) {
+        return -1;
+    }
+
     // Finds an open entry in the global file table
     int global_fd_index = 0;
     while (global_fd_index < NFILE && global_fd_array[global_fd_index].refcount != 0)
@@ -46,10 +51,31 @@ int file_open(char *path, int access_mode) {
         ++global_fd_index;   
     }
 
-    struct inode *inode_ptr = namei(path);
+    struct inode *inode_ptr = iopen(path);
 
     global_fd_array[global_fd_index] = (struct file_info){ .inode=inode_ptr, .offset=0, .access_mode=access_mode, .refcount=1 };
     curr_proc->fd_array[proc_fd_index] = &global_fd_array[global_fd_index];
     
     return proc_fd_index;
+}
+
+/** Close the file specified by the given file descriptor.
+ * Clean up if this is the last reference.
+ * @param fd The file descriptor of the file to close.
+ * @return 0 on success, -1 on failure.
+ */
+int file_close(int fd) {
+    struct proc *curr_proc = myproc();
+
+    // Decrement the reference count and clean up if this is the last reference
+    if (--curr_proc->fd_array[fd]->refcount <= 0) {
+        // Release the inode
+        irelease(curr_proc->fd_array[fd]->inode);
+
+        // Deallocate the file_info struct
+        *curr_proc->fd_array[fd] = (struct file_info) { 0 };
+        curr_proc->fd_array[fd] = NULL;
+    }
+
+    return 0;
 }

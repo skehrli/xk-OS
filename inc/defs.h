@@ -187,6 +187,7 @@ int argint(int, int *);
 int argint64(int, int64_t *);
 int argptr(int, char **, int);
 int argstr(int, char **);
+int argfd(int n, int *fd);
 int fetchint(uint64_t, int *);
 int fetchint64_t(uint64_t, int64_t *);
 int fetchstr(uint64_t, char **);
@@ -204,3 +205,7 @@ void uartintr(void);
 void uartputc(int);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
+
+// file.c
+int file_open(char *, int);
+int file_close(int);

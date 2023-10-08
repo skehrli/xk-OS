@@ -39,9 +39,25 @@ int sys_write(void) {
   return 1;
 }
 
+/*
+ * arg0: int [file descriptor]
+ *
+ * Close the given file descriptor
+ * Return 0 on successful close, -1 otherwise
+ *
+ * Error conditions:
+ * arg0 is not an open file descriptor
+ */
 int sys_close(void) {
   // LAB1
-  return -1;
+  int fd;
+
+  // arg0 is not an open file descriptor for the current process
+  if (argfd(0, &fd) < 0) {
+    return -1;
+  }
+
+  return file_close(fd);
 }
 
 int sys_fstat(void) {
@@ -77,9 +93,32 @@ int sys_open(void) {
   char *path;
   int access_mode;
 
-  argstr(0, &path);
-  argint(1, &access_mode);
+  // fetch the syscall arguments
+  if (argstr(0, &path) < 0 || argint(1, &access_mode) < 0) {
+    // arguments fetching fails
+    return -1;
+  }
 
+  // arg0 points to an invalid or unmapped address or,
+  // there is an invalid address before the end of the string or,
+  // the file does not exist
+  if (namei(path) == NULL) {
+    return -1;
+  }
+
+  // file system is read only, any write flags for non console files are invalid
+  if (strncmp(path, "console", strlen(path)) != 0 && access_mode != O_RDONLY) {
+    return -1;
+  }
+
+  // O_CREATE is not permitted (for now)
+  if (access_mode == O_CREATE) {
+    return -1;
+  }
+
+  // file_open returns an error if 
+  // already at max open files or
+  // there is no available file descriptor
   return file_open(path, access_mode);
 }
 

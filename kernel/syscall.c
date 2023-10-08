@@ -129,6 +129,27 @@ int argstr(int n, char **pp) {
   return fetchstr(addr, pp);
 }
 
+// Fetch the nth word-sized system call argument as a file descriptor
+// and make sure it's valid for the current process.
+int argfd(int n, int *fd_ptr) {
+  if (argint(n, fd_ptr) < 0) {
+    return -1;
+  }
+
+  int fd = *fd_ptr;
+  // Make sure the fd index is in the valid range
+  if (fd < 0 || fd >= NOFILE) {
+    return -1;
+  }
+
+  // Make sure the fd is open for the current process
+  if (myproc()->fd_array[fd] == NULL) {
+    return -1;
+  }
+
+  return 0;
+}
+
 extern int sys_close(void);
 extern int sys_dup(void);
 extern int sys_exec(void);
