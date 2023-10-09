@@ -177,7 +177,7 @@ void syscall(void) {
 int sys_sysinfo(void) {
   struct sys_info *info;
 
-  if (argptr(0, (void *)&info, sizeof(info)) < 0)
+  if (argptr(0, (void *)&info, sizeof(struct sys_info)) < 0)
     return -1;
 
   info->pages_in_use = pages_in_use;
