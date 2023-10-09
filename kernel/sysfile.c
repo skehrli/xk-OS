@@ -21,11 +21,69 @@ int sys_dup(void) {
   return -1;
 }
 
+/*
+ * arg0: int [file descriptor]
+ * arg1: char * [buffer to write read bytes to]
+ * arg2: int [number of bytes to read]
+ *
+ * Read up to arg2 bytes from the current position of the corresponding file of the 
+ * arg0 file descriptor, place those bytes into the arg1 buffer.
+ * The current position of the open file is then updated with the number of bytes read.
+ *
+ * Return the number of bytes read, or -1 if there was an error.
+ *
+ * Fewer than arg2 bytes might be read due to these conditions:
+ * If the current position + arg2 is beyond the end of the file.
+ * If this is a pipe or console device and fewer than arg2 bytes are available 
+ * If this is a pipe and the other end of the pipe has been closed.
+ *
+ * Error conditions:
+ * arg0 is not a file descriptor open for read 
+ * some address between [arg1, arg1+arg2) is invalid
+ * arg2 is not positive
+ */
 int sys_read(void) {
   // LAB1
-  return -1;
+  int fd;
+  int n;
+  char *buf;
+
+  if (argfd(0, &fd) < 0 ||    // arg0 is not a file descriptor
+      argint(2, &n) < 0 ||    // arg2 is not positive
+      argptr(1, &buf, n) < 0  // some address between [arg1, arg1+arg2) is invalid
+      ) {
+    return -1;
+  }  
+
+  return file_read(fd, buf, n);
 }
 
+/*
+ * arg0: int [file descriptor]
+ * arg1: char * [buffer of bytes to write to the given fd]
+ * arg2: int [number of bytes to write]
+ *
+ * Write up to arg2 bytes from arg1 to the current position of the corresponding file of
+ * the file descriptor. The current position of the file is updated by the number of bytes written.
+ *
+ * Return the number of bytes written, or -1 if there was an error.
+ *
+ * If the full write cannot be completed, write as many as possible 
+ * before returning with that number of bytes.
+ *
+ * If writing to a pipe and the other end of the pipe is closed,
+ * return -1.
+ *
+ * Error conditions:
+ * arg0 is not a file descriptor open for write
+ * some address between [arg1,arg1+arg2-1] is invalid
+ * arg2 is not positive
+ *
+ * note that for lab1, the file system does not support writing past 
+ * the end of the file. Normally this would extend the size of the file
+ * allowing the write to complete, to the maximum extent possible 
+ * provided there is space on the disk.
+ */
 int sys_write(void) {
   // you have to change the code in this function.
   // Currently it supports printing one character to the screen.
@@ -37,6 +95,23 @@ int sys_write(void) {
     return -1;
   uartputc((int)(*p));
   return 1;
+
+  /*
+  // LAB1
+  
+  int fd;
+  int n;
+  char *buf;
+
+  if (argfd(0, &fd) < 0 ||    // arg0 is not a file descriptor
+      argint(2, &n) < 0 ||    // arg2 is not positive
+      argptr(1, &buf, n) < 0  // some address between [arg1, arg1+arg2) is invalid
+      ) {
+    return -1;
+  }
+  
+  return file_write(fd, buf, n);
+  */
 }
 
 /*

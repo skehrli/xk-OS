@@ -209,3 +209,5 @@ void uartputc(int);
 // file.c
 int file_open(char *, int);
 int file_close(int);
+int file_read(int, char *, int);
+int file_write(int, char *, int);
