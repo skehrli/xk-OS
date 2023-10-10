@@ -3,6 +3,17 @@
 #include <extent.h>
 #include <sleeplock.h>
 
+// an abstraction on top of inodes
+// allows for an I/O interface for user processes
+struct file_info {
+  struct inode *node;
+  uint offset; // how far we've read
+  int mode;    // defined in inc/fcntl.h
+  uint ref_count;
+  char *path;
+  uint gfd; // global file descriptor (in global file table)
+};
+
 // in-memory copy of an inode
 struct inode {
   uint dev;  // Device number
@@ -12,24 +23,11 @@ struct inode {
   struct sleeplock lock;
 
   // copy of disk inode (see fs.h for details)
-  short type; 
+  short type;
   short devid;
   uint size;
   struct extent data;
 };
-
-// Metadata for an open file
-// - the underlying inode
-// - current offset of the file (how far have we read)
-// - access mode of the open file (identifies the file as readable, writable and so on)
-// - reference count of the struct
-struct file_info {
-  struct inode *inode;
-  int offset;
-  int access_mode;
-  int refcount;
-};
-
 
 // table mapping device ID (devid) to device functions
 struct devsw {
