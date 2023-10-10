@@ -59,9 +59,6 @@ noreturn void panic(char *);
 // exec.c
 int exec(char *, char **);
 
-// file.c
-int file_open(int file_mode, char *file_path);
-
 // fs.c
 void readsb(int dev, struct superblock *sb);
 struct inode *dirlookup(struct inode *, char *, uint *);
@@ -211,7 +208,7 @@ void uartputc(int);
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
 
 // file.c
-int file_open(char *, int);
+int file_open(int, char *);
 int file_close(int);
 int file_read(int, char *, int);
 int file_write(int, char *, int);
