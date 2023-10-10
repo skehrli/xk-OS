@@ -7,8 +7,8 @@
 #include <syscall.h>
 #include <sysinfo.h>
 #include <trap.h>
-#include <x86_64.h>
 #include <vspace.h>
+#include <x86_64.h>
 
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
@@ -16,21 +16,19 @@
 // library system call function. The saved user %esp points
 // to a saved program counter, and then the first argument.
 
-#define syscall_gen_fetcher(type) \
-  int \
-  fetch ## type(uint64_t addr, type *ip) \
-  { \
-    struct vregion *r; \
-    struct vspace *v; \
-    v = &myproc()->vspace; \
-    for (r = v->regions; r < &v->regions[NREGIONS]; r++) { \
-      if (vregioncontains(r, addr, sizeof(type))) { \
-        *ip = *(type *)(addr); \
-        return 0; \
-      } \
-    } \
-    return -1; \
-  } \
+#define syscall_gen_fetcher(type)                                              \
+  int fetch##type(uint64_t addr, type *ip) {                                   \
+    struct vregion *r;                                                         \
+    struct vspace *v;                                                          \
+    v = &myproc()->vspace;                                                     \
+    for (r = v->regions; r < &v->regions[NREGIONS]; r++) {                     \
+      if (vregioncontains(r, addr, sizeof(type))) {                            \
+        *ip = *(type *)(addr);                                                 \
+        return 0;                                                              \
+      }                                                                        \
+    }                                                                          \
+    return -1;                                                                 \
+  }
 
 // these create the functions:
 //   - fetchint(uint64_t addr, int *p)
@@ -38,15 +36,12 @@
 //
 //   - fetchint64_t(uint64_t addr, uint64_t *p)
 //       -> use to get an 8 byte integer
-syscall_gen_fetcher(int)
-syscall_gen_fetcher(int64_t)
+syscall_gen_fetcher(int) syscall_gen_fetcher(int64_t)
 
-// Fetch the nul-terminated string at addr from the current process.
-// Doesn't actually copy the string - just sets *pp to point at it.
-// Returns length of string, not including nul.
-int
-fetchstr(uint64_t addr, char **pp)
-{
+    // Fetch the nul-terminated string at addr from the current process.
+    // Doesn't actually copy the string - just sets *pp to point at it.
+    // Returns length of string, not including nul.
+    int fetchstr(uint64_t addr, char **pp) {
   struct vregion *r;
   struct vspace *v;
   char *s, *ep;
@@ -54,10 +49,10 @@ fetchstr(uint64_t addr, char **pp)
   v = &myproc()->vspace;
   for (r = v->regions; r < &v->regions[NREGIONS]; r++) {
     if (vregioncontains(r, addr, 0)) {
-      *pp = (char*)addr;
+      *pp = (char *)addr;
       ep = (char *)VRTOP(r);
-      for(s = *pp; s < ep; s++) {
-        if(*s == 0)
+      for (s = *pp; s < ep; s++) {
+        if (*s == 0)
           return s - *pp;
       }
     }
@@ -111,7 +106,7 @@ int argptr(int n, char **pp, int size) {
   v = &myproc()->vspace;
   for (r = v->regions; r < &v->regions[NREGIONS]; r++) {
     if (vregioncontains(r, i, size)) {
-      *pp = (char*)i;
+      *pp = (char *)i;
       return 0;
     }
   }

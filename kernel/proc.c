@@ -8,10 +8,8 @@
 #include <proc.h>
 #include <spinlock.h>
 #include <trap.h>
-#include <x86_64.h>
-#include <fs.h>
-#include <file.h>
 #include <vspace.h>
+#include <x86_64.h>
 
 // process table
 struct {
@@ -97,13 +95,15 @@ void userinit(void) {
   p = allocproc();
 
   initproc = p;
-  assertm(vspaceinit(&p->vspace) == 0, "error initializing process's virtual address descriptor");
-  vspaceinitcode(&p->vspace, _binary_out_initcode_start, (int64_t)_binary_out_initcode_size);
+  assertm(vspaceinit(&p->vspace) == 0,
+          "error initializing process's virtual address descriptor");
+  vspaceinitcode(&p->vspace, _binary_out_initcode_start,
+                 (int64_t)_binary_out_initcode_size);
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ss = (SEG_UDATA << 3) | DPL_USER;
   p->tf->rflags = FLAGS_IF;
-  p->tf->rip = VRBOT(&p->vspace.regions[VR_CODE]);  // beginning of initcode.S
+  p->tf->rip = VRBOT(&p->vspace.regions[VR_CODE]); // beginning of initcode.S
   p->tf->rsp = VRTOP(&p->vspace.regions[VR_USTACK]);
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
@@ -309,9 +309,9 @@ int kill(int pid) {
 // Runs when user types ^P on console.
 // No lock to avoid wedging a stuck machine further.
 void procdump(void) {
-  static char *states[] = {[UNUSED] = "unused",   [EMBRYO] = "embryo",
-                           [SLEEPING] = "sleep ", [RUNNABLE] = "runble",
-                           [RUNNING] = "run   ",  [ZOMBIE] = "zombie"};
+  static char *states[] = {
+      [UNUSED] = "unused",   [EMBRYO] = "embryo",  [SLEEPING] = "sleep ",
+      [RUNNABLE] = "runble", [RUNNING] = "run   ", [ZOMBIE] = "zombie"};
   int i;
   struct proc *p;
   char *state;

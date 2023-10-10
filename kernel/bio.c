@@ -147,10 +147,10 @@ void brelse(struct buf *b) {
 void print_data_at_block(uint block) {
   cprintf("Printing data at block=%d\n", block);
   uint64_t data[BSIZE / 8];
-  struct buf* b = bread(ROOTDEV, block);
+  struct buf *b = bread(ROOTDEV, block);
   memmove(data, b->data, BSIZE);
   brelse(b);
-  for (int i = 0; i < BSIZE/8; ++i) {
+  for (int i = 0; i < BSIZE / 8; ++i) {
     cprintf("block=0x%x index=%d: %lx\n", block, i, data[i]);
   }
 }

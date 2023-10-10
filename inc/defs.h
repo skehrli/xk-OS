@@ -30,16 +30,17 @@ extern int crashn;
 #define _xk_str(x) #x
 #define __xk_str(x) _xk_str(x)
 
-#define assert(x)		\
-	do { \
-    if (!(x)) \
+#define assert(x)                                                              \
+  do {                                                                         \
+    if (!(x))                                                                  \
       panic("assertion failed: '" #x "' at " __FILE__ ":" __xk_str(__LINE__)); \
   } while (0)
 
-#define assertm(x, msg)		\
-	do { \
-    if (!(x)) \
-      panic("assertion failed: '" msg "' at " __FILE__ ":" __xk_str(__LINE__)); \
+#define assertm(x, msg)                                                        \
+  do {                                                                         \
+    if (!(x))                                                                  \
+      panic("assertion failed: '" msg "' at " __FILE__                         \
+            ":" __xk_str(__LINE__));                                           \
   } while (0)
 
 // bio.c
@@ -57,6 +58,9 @@ noreturn void panic(char *);
 
 // exec.c
 int exec(char *, char **);
+
+// file.c
+int file_open(int file_mode, char *file_path);
 
 // fs.c
 void readsb(int dev, struct superblock *sb);
@@ -115,25 +119,25 @@ extern int ismp;
 void mpinit(void);
 
 // vspace.c
-void                vspacebootinit(void);
-int                 vspaceinit(struct vspace *);
-void                vspaceinitcode(struct vspace *, char *, uint64_t);
-int                 vspaceloadcode(struct vspace *, char *, uint64_t *);
-void                vspaceupdate(struct vspace *);
-void                vspacemarknotpresent(struct vspace *, uint64_t);
-void                vspaceinstall(struct proc *);
-void                vspaceinstallkern(void);
-void                vspacefree(struct vspace *);
-struct vregion*     va2vregion(struct vspace *, uint64_t);
-struct vpage_info*  va2vpage_info(struct vregion *, uint64_t);
-int                 vregioncontains(struct vregion *, uint64_t, int);
-int                 vspacecopy(struct vspace *, struct vspace *);
-int                 vspaceinitstack(struct vspace *, uint64_t);
-int                 vspacewritetova(struct vspace *, uint64_t, char *, int);
-void                vspacedumpstack(struct vspace *);
-void                vspacedumpcode(struct vspace *);
-int                 vregionaddmap(struct vregion *, uint64_t, uint64_t, short, short);
-int                 vregiondelmap(struct vregion *, uint64_t, uint64_t);
+void vspacebootinit(void);
+int vspaceinit(struct vspace *);
+void vspaceinitcode(struct vspace *, char *, uint64_t);
+int vspaceloadcode(struct vspace *, char *, uint64_t *);
+void vspaceupdate(struct vspace *);
+void vspacemarknotpresent(struct vspace *, uint64_t);
+void vspaceinstall(struct proc *);
+void vspaceinstallkern(void);
+void vspacefree(struct vspace *);
+struct vregion *va2vregion(struct vspace *, uint64_t);
+struct vpage_info *va2vpage_info(struct vregion *, uint64_t);
+int vregioncontains(struct vregion *, uint64_t, int);
+int vspacecopy(struct vspace *, struct vspace *);
+int vspaceinitstack(struct vspace *, uint64_t);
+int vspacewritetova(struct vspace *, uint64_t, char *, int);
+void vspacedumpstack(struct vspace *);
+void vspacedumpcode(struct vspace *);
+int vregionaddmap(struct vregion *, uint64_t, uint64_t, short, short);
+int vregiondelmap(struct vregion *, uint64_t, uint64_t);
 
 // picirq.c
 void picenable(int);
