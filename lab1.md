@@ -1,6 +1,6 @@
 ## Part 1
 ### Question 1
-- a) 24: cprintf("\ncpu%d: starting xk\n\n", cpunum());
+- a) 22: cpuid_print()
 - b) 23: e820_print();
 ### Question 2
 We can get the memory address of the main function with the command:
