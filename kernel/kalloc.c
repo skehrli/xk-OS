@@ -120,9 +120,7 @@ void kfree(char *v) {
     release(&kmem.lock);
 }
 
-void
-mark_user_mem(uint64_t pa, uint64_t va)
-{
+void mark_user_mem(uint64_t pa, uint64_t va) {
   // for user mem, add an mapping to proc_info
   struct core_map_entry *r = pa2page(pa);
 
@@ -130,9 +128,7 @@ mark_user_mem(uint64_t pa, uint64_t va)
   r->va = va;
 }
 
-void
-mark_kernel_mem(uint64_t pa)
-{
+void mark_kernel_mem(uint64_t pa) {
   // for user mem, add an mapping to proc_info
   struct core_map_entry *r = pa2page(pa);
 
@@ -164,24 +160,21 @@ char *kalloc(void) {
   return 0;
 }
 
-
 static unsigned long int next = 1;
 
 // returns random integer from [0, limit)
 static int rand(int limit) {
   next = next * 1103515245 + 12345;
-  return (unsigned int)(next/65536) % limit;
+  return (unsigned int)(next / 65536) % limit;
 }
 
 // Sets the seed for random.
 // Intended to be used before calling rand.
-static void setrand(unsigned int seed) {
-  next = seed;
-}
+static void setrand(unsigned int seed) { next = seed; }
 
-struct core_map_entry * get_random_user_page() {
+struct core_map_entry *get_random_user_page() {
   int x = 100;
-  while(x--) {
+  while (x--) {
     int rand_index = rand(npages);
     if (core_map[rand_index].va != 0) {
       return &core_map[rand_index];

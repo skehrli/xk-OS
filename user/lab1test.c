@@ -3,8 +3,8 @@
 #include <param.h>
 #include <stat.h>
 #include <stdarg.h>
-#include <user.h>
 #include <test.h>
+#include <user.h>
 
 void open_basic(void);
 void open_bad_args(void);
@@ -26,11 +26,11 @@ void fstat_test(void);
 void dup_test(void);
 
 int main() {
-  if(open("console", O_RDWR) < 0){
+  if (open("console", O_RDWR) < 0) {
     error("lab1test: failed to open the console");
   }
-  dup(0);     // stdout
-  dup(0);     // stderr
+  dup(0); // stdout
+  dup(0); // stderr
 
   open_basic();
   open_bad_args();
@@ -71,7 +71,9 @@ void open_basic(void) {
     error("open_basic: cannot open small.txt on 2nd try, got fd %d", fd);
   }
   if (fd == fd2) {
-    error("open_basic: got the same file descriptor from different open calls: %d, %d", fd, fd2);
+    error("open_basic: got the same file descriptor from different open calls: "
+          "%d, %d",
+          fd, fd2);
   }
 
   pass("");
@@ -85,16 +87,19 @@ void open_bad_args(void) {
     error("open_bad_args: able to open a file that doesn't exist");
   }
 
-  if (open((char*)0x0, O_RDONLY) != -1) {
-    error("open_bad_args: able to open with an invalid path address (0x0) from the user space");
+  if (open((char *)0x0, O_RDONLY) != -1) {
+    error("open_bad_args: able to open with an invalid path address (0x0) from "
+          "the user space");
   }
 
-  if (open((char*)0xFFFF0000, O_RDONLY) != -1) {
-    error("open_bad_args: able to open with an invalid path address (0xFFFF0000) from the user space");
+  if (open((char *)0xFFFF0000, O_RDONLY) != -1) {
+    error("open_bad_args: able to open with an invalid path address "
+          "(0xFFFF0000) from the user space");
   }
 
-  if (open((char*)0xFFFFFFFF80000000, O_RDONLY) != -1) {
-    error("open_bad_args: able to open with an invalid path address (0xFFFFFFFF80000000) from the kernel space");
+  if (open((char *)0xFFFFFFFF80000000, O_RDONLY) != -1) {
+    error("open_bad_args: able to open with an invalid path address "
+          "(0xFFFFFFFF80000000) from the kernel space");
   }
 
   pass("");
@@ -105,11 +110,13 @@ void open_mismatch_perm(void) {
   test("open_mismatch_perm");
 
   if (open("/other.txt", O_CREATE) != -1) {
-    error("open_mismatch_perm: able to create a file in a read only file system");
+    error(
+        "open_mismatch_perm: able to create a file in a read only file system");
   }
 
   if (open("/small.txt", O_RDWR) != -1 || open("/small.txt", O_WRONLY) != -1) {
-    error("open_mismatch_perm: able to open a file for writing in a read only file system");
+    error("open_mismatch_perm: able to open a file for writing in a read only "
+          "file system");
   }
 
   pass("");
@@ -151,7 +158,8 @@ void close_bad_args(void) {
   }
 
   if (close(640) != -1) {
-    error("close_bad_args: able to close fd that exceeds the number of open files");
+    error("close_bad_args: able to close fd that exceeds the number of open "
+          "files");
   }
 
   pass("");
@@ -166,26 +174,33 @@ void open_close_fd_limit(void) {
   for (tmpfd = fd + 1; tmpfd < NOFILE; tmpfd++) {
     int newfd = open("/small.txt", O_RDONLY);
     if (newfd != tmpfd) {
-      error("open_close_fd_limit: returned fd %d from open, was not the smallest free fd %d", newfd, tmpfd);
+      error("open_close_fd_limit: returned fd %d from open, was not the "
+            "smallest free fd %d",
+            newfd, tmpfd);
     }
   }
 
   // open should fail as we have reached the NOFILE limit
   if ((badfd = open("/small.txt", O_RDONLY)) != -1) {
-    error("open_close_fd_limit: opened more files than allowed, returned fd %d", badfd);
+    error("open_close_fd_limit: opened more files than allowed, returned fd %d",
+          badfd);
   }
 
   // open should work once we close an open file
-  assert(close(NOFILE-1) == 0);
+  assert(close(NOFILE - 1) == 0);
   tmpfd = open("/small.txt", O_RDONLY);
   if (tmpfd < 0) {
-    error("open_close_fd_limit: unable to open file after an fd is available, return value was %d", tmpfd);
+    error("open_close_fd_limit: unable to open file after an fd is available, "
+          "return value was %d",
+          tmpfd);
   }
 
-  assert(tmpfd == NOFILE-1);
+  assert(tmpfd == NOFILE - 1);
   for (tmpfd = fd; tmpfd < NOFILE; tmpfd++) {
     if (close(tmpfd) != 0) {
-      error("open_close_fd_limit: unable to close opened file, failed to close fd %d", tmpfd);
+      error("open_close_fd_limit: unable to close opened file, failed to close "
+            "fd %d",
+            tmpfd);
     }
   }
 
@@ -233,7 +248,8 @@ void read_basic(void) {
   }
 
   if (read(fd, buf, 10) != 0) {
-    error("read_basic: able to read beyond the end of the file, read %d bytes", i);
+    error("read_basic: able to read beyond the end of the file, read %d bytes",
+          i);
   }
 
   if (close(fd) != 0) {
@@ -253,8 +269,9 @@ void read_bad_args(void) {
     error("read_bad_args: able to read on an invalid file descriptor 800");
   }
 
-  if (read(NOFILE-1, buf, 11) != -1) {
-    error("read_bad_args: able to read on a non existent file descriptor %d", NOFILE-1);
+  if (read(NOFILE - 1, buf, 11) != -1) {
+    error("read_bad_args: able to read on a non existent file descriptor %d",
+          NOFILE - 1);
   }
 
   // open a valid file to test invalid read params
@@ -263,7 +280,8 @@ void read_bad_args(void) {
   }
 
   if ((i = read(fd, buf, -100)) != -1) {
-    error("read_bad_args: able to read negative number of bytes, read %d bytes", i);
+    error("read_bad_args: able to read negative number of bytes, read %d bytes",
+          i);
   }
 
   if (read(fd, (char *)0xffffff00, 10) != -1) {
@@ -284,8 +302,10 @@ void read_mismatch_perm(void) {
   assert(fd >= 0);
 
   if (read(fd, buf, 10) != -1) {
-    // NOTE: If the test hangs here it's because you're trying to read from stdin (hint: shouldn't happen).
-    error("read_mismatch_perm: able to read from console that's opened as write only");
+    // NOTE: If the test hangs here it's because you're trying to read from
+    // stdin (hint: shouldn't happen).
+    error("read_mismatch_perm: able to read from console that's opened as "
+          "write only");
   }
 
   assert(close(fd) == 0);
@@ -302,14 +322,17 @@ void write_basic(void) {
   len = strlen(buf);
   
   if ((i = write(stdout, buf, len)) != len) {
-    error("write_basic: wasn't able to write all %d bytes to stdout, wrote %d bytes ", len, i);
+    error("write_basic: wasn't able to write all %d bytes to stdout, wrote %d "
+          "bytes ",
+          len, i);
   }
 
   strcpy(buf, "hello ");
   len = strlen(buf);
 
   if ((i = write(stdout, buf, len)) != len) {
-    error("write_basic: unable to write %d bytes to stdout, wrote %d bytes", len, i);
+    error("write_basic: unable to write %d bytes to stdout, wrote %d bytes",
+          len, i);
   }
 
   pass("");
@@ -325,7 +348,8 @@ void write_bad_args(void) {
   }
 
   if (write(stdout, (char *)0xfffffbeef, 11) != -1) {
-    error("write_bad_args: able to write with an invalid read buffer (0xfffffbeef)");
+    error("write_bad_args: able to write with an invalid read buffer "
+          "(0xfffffbeef)");
   }
 
   pass("");
@@ -339,7 +363,8 @@ void write_mismatch_perm(void) {
 
   assert((fd = open("console", O_RDONLY)) >= 0);
   if (write(fd, buf, 11) != -1) {
-    error("write_mismatch_perm: able to write to console that's opened for read only");
+    error("write_mismatch_perm: able to write to console that's opened for "
+          "read only");
   }
   assert(close(fd) == 0);
   pass("");
@@ -396,12 +421,14 @@ void dup_test(void) {
   }
 
   if ((fd2 = dup(fd1)) != fd1 + 1) {
-    error("dup_test: returned fd from dup was not the smallest free fd, was '%d'", fd2);
+    error(
+        "dup_test: returned fd from dup was not the smallest free fd, was '%d'",
+        fd2);
   }
 
   // test offsets are respected in dupped files
   assert(read(fd1, buf, 10) == 10);
-  
+
   buf[10] = 0;
   if (strcmp(buf, "aaaaaaaaaa") != 0) {
     error("dup_test: couldn't read from original fd after dup");
@@ -413,11 +440,13 @@ void dup_test(void) {
 
   buf[10] = 0;
   if (strcmp(buf, "aaaaaaaaaa") == 0) {
-    error("dup_test: the duped fd didn't respect the read offset from the other file.");
+    error("dup_test: the duped fd didn't respect the read offset from the "
+          "other file.");
   }
 
   if (strcmp(buf, "bbbbbbbbbb") != 0) {
-    error("dup_test: the duped fd didn't read the correct 10 bytes at the 10 byte offset");
+    error("dup_test: the duped fd didn't read the correct 10 bytes at the 10 "
+          "byte offset");
   }
 
   if (close(fd1) != 0) {
@@ -425,7 +454,8 @@ void dup_test(void) {
   }
 
   if (read(fd2, buf, 5) != 5) {
-    error("dup_test: wasn't able to read from the duped file after the original file was closed");
+    error("dup_test: wasn't able to read from the duped file after the "
+          "original file was closed");
   }
 
   buf[5] = 0;
@@ -438,7 +468,9 @@ void dup_test(void) {
   // test duping of stdout
   // should be fd1, because that is the first file I opened (and closed) earlier
   if ((stdout_cpy = dup(stdout)) != fd1) {
-    error("dup_test: returned fd from dup that was not the smallest free fd, was '%d'", stdout_cpy);
+    error("dup_test: returned fd from dup that was not the smallest free fd, "
+          "was '%d'",
+          stdout_cpy);
   }
 
   char *consolestr = "print to console directly from write ";
