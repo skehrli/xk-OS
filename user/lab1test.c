@@ -26,9 +26,6 @@ void fstat_test(void);
 void dup_test(void);
 
 int main() {
-  printf(stdout, "hello world\n");
-  // while (1);
-
   if(open("console", O_RDWR) < 0){
     error("lab1test: failed to open the console");
   }

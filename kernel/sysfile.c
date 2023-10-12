@@ -148,9 +148,30 @@ int sys_close(void) {
   return file_close(fd);
 }
 
+/*
+ * arg0: int [file descriptor]
+ * arg1: struct stat *
+ *
+ * Populate the struct stat pointer passed in to the function
+ *
+ * Return 0 on success, -1 otherwise
+ *
+ * Error conditions: 
+ * if arg0 is not a valid file descriptor
+ * if any address within the range [arg1, arg1+sizeof(struct stat)] is invalid
+ */
 int sys_fstat(void) {
   // LAB1
-  return -1;
+  int fd;
+  struct stat *stat_ptr;
+
+  if (argfd(0, &fd) < 0 || // arg0 is not a valid file descriptor
+      argptr(1, (char **)&stat_ptr, sizeof(struct stat)) < 0  // some address between [arg1, arg1+arg2) is invalid
+      ) {
+    return -1;
+  }
+  
+  return file_stat(fd, stat_ptr);
 }
 
 /*
@@ -181,9 +202,8 @@ int sys_open(void) {
   char *path;
   int access_mode;
 
-  // fetch the syscall arguments
   if (argstr(0, &path) < 0 || argint(1, &access_mode) < 0) {
-    // arguments fetching fails
+    // invalid arguments
     return -1;
   }
 

@@ -25,8 +25,8 @@ struct file_info global_fd_array[NFILE];
  * @return The number of bytes read.
  */
 int file_read(int fd, char *buf, int n) {
-    struct proc *curr_proc = myproc();
-    struct file_info *file_info_ptr = curr_proc->fd_array[fd];
+    struct proc *my_proc = myproc();
+    struct file_info *file_info_ptr = my_proc->fd_array[fd];
 
     // Error if the file is write-only
     if (file_info_ptr->access_mode == O_WRONLY) {
@@ -47,8 +47,8 @@ int file_read(int fd, char *buf, int n) {
 }
 
 int file_write(int fd, char *buf, int n) {
-    struct proc *curr_proc = myproc();
-    struct file_info *file_info_ptr = curr_proc->fd_array[fd];
+    struct proc *my_proc = myproc();
+    struct file_info *file_info_ptr = my_proc->fd_array[fd];
 
     // Error if the file is read-only
     if (file_info_ptr->access_mode == O_RDONLY) {
@@ -56,7 +56,9 @@ int file_write(int fd, char *buf, int n) {
     }
 
     // TODO: If the full write cannot be completed, write as many as possible before returning with that number of bytes.
-    return concurrent_writei(file_info_ptr->inode, buf, file_info_ptr->offset, n);
+    int bytes_written = concurrent_writei(file_info_ptr->inode, buf, file_info_ptr->offset, n);
+    my_proc->fd_array[fd]->offset += bytes_written;
+    return bytes_written;
 }
 
 /** Open the file specified by path in the given access mode.
@@ -65,7 +67,7 @@ int file_write(int fd, char *buf, int n) {
  * @return The file descriptor index for the current process.
  */ 
 int file_open(char *path, int access_mode) {
-    struct proc *curr_proc = myproc();
+    struct proc *my_proc = myproc();
 
     if (access_mode == T_DEV) {
         return -1;
@@ -73,7 +75,7 @@ int file_open(char *path, int access_mode) {
 
     // Finds an open spot in the process file table
     int proc_fd_index = 0;
-    while (proc_fd_index < NOFILE && curr_proc->fd_array[proc_fd_index] != NULL)
+    while (proc_fd_index < NOFILE && my_proc->fd_array[proc_fd_index] != NULL)
     {
         ++proc_fd_index;   
     }
@@ -93,7 +95,7 @@ int file_open(char *path, int access_mode) {
     struct inode *inode_ptr = iopen(path);
 
     global_fd_array[global_fd_index] = (struct file_info){ .inode=inode_ptr, .offset=0, .access_mode=access_mode, .refcount=1 };
-    curr_proc->fd_array[proc_fd_index] = &global_fd_array[global_fd_index];
+    my_proc->fd_array[proc_fd_index] = &global_fd_array[global_fd_index];
     
     return proc_fd_index;
 }
@@ -104,45 +106,69 @@ int file_open(char *path, int access_mode) {
  * @return 0 on success, -1 on failure.
  */
 int file_close(int fd) {
-    struct proc *curr_proc = myproc();
+    struct proc *my_proc = myproc();
 
-    // Decrement the reference count and clean up if this is the last reference
-    if (--curr_proc->fd_array[fd]->refcount <= 0) {
-        // Release the inode
-        irelease(curr_proc->fd_array[fd]->inode);
+    // Decrement the reference count for the file_info pointed by the file descriptor
+    int file_info_refcount = --my_proc->fd_array[fd]->refcount;
+    
+    // Clean up if this is the last reference to the file_info
+    if (file_info_refcount <= 0) {
+        // Decrement the reference count for the inode
+        int inode_refcount = --my_proc->fd_array[fd]->inode->ref;
+        // Release the inode if this is the last reference to it
+        if (inode_refcount <= 0) {
+            irelease(my_proc->fd_array[fd]->inode);
+        }
 
         // Deallocate the file_info struct
-        *curr_proc->fd_array[fd] = (struct file_info) { 0 };
-        curr_proc->fd_array[fd] = NULL;
+        *my_proc->fd_array[fd] = (struct file_info) { 0 };
     }
 
+    // Remove the file_info from the process file table
+    my_proc->fd_array[fd] = NULL;
     return 0;
 }
 
 /** Duplicate the file descriptor.
- * @param fd The file descriptor of the file to duplicate.
+ * @param fd_copy The file descriptor of the file to duplicate.
  * @return The new file descriptor index for the current process.
  */
-int file_dup(int fd) {
-    struct proc *curr_proc = myproc();
-    struct file_info *file_info_ptr = curr_proc->fd_array[fd];
+int file_dup(int fd_copy) {
+    struct proc *my_proc = myproc();
 
     // Finds an open spot in the process file table
-    int proc_fd_index = 0;
-    while (proc_fd_index < NOFILE && curr_proc->fd_array[proc_fd_index] != NULL)
-    {
-        ++proc_fd_index;   
+    int fd = 0;
+    while (fd < NOFILE && my_proc->fd_array[fd] != NULL) {
+        ++fd;   
     }
 
     // Error if the process file table is full
-    if (proc_fd_index == NOFILE) {
+    if (fd == NOFILE) {
         return -1;
     }
 
+    struct file_info *file_info_ptr = my_proc->fd_array[fd_copy];
+    // Add the file_info to the process file table
+    my_proc->fd_array[fd] = file_info_ptr;
     // Increment the reference count
     file_info_ptr->refcount++;
-    // Add the file_info to the process file table
-    curr_proc->fd_array[proc_fd_index] = file_info_ptr;
 
-    return proc_fd_index;
+    return fd;
+}
+
+/** Return statistics to the user about a file.
+ * @param fd The file descriptor of the file to get statistics for.
+ * @param stat_ptr The struct stat pointer to populate.
+ * @return 0 on success, -1 on failure.
+*/
+int file_stat(int fd, struct stat *stat_ptr) {
+  struct proc *my_proc = myproc();
+  
+  if (my_proc->fd_array[fd]->inode == NULL) {
+    // underlying inode ptr is null
+    return -1;
+  }
+
+  concurrent_stati(my_proc->fd_array[fd]->inode, stat_ptr);
+  return 0;
 }
