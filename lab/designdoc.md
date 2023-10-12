@@ -5,7 +5,7 @@ course staff.
 
 ## Introduction
 
-Lab 2,3,4 and 5 require that you write a design document. The design documents
+Lab 2, 3, and 4 require that you write a design document. The design documents
 are, in the opinions of the course staff, the single most important piece of
 work you will do in this class. It will be a large factor determining whether
 your code works, or whether you become endlessly frustrated chasing problems
@@ -72,6 +72,7 @@ need to complete. For example, in assignment 2, a good topic breakdown might be:
 - fork
 - wait/exit
 - exec
+- pipe
 
 For each section, again, start with a few sentences describing goals. For
 example, the goal of the system call implementation might be to prevent bugs
