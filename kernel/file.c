@@ -11,6 +11,7 @@
 #include <param.h>
 #include <sleeplock.h>
 #include <spinlock.h>
+#include <stat.h>
 
 struct devsw devsw[NDEV];
 
@@ -64,7 +65,11 @@ int file_write(int fd, char *buf, int n) {
  * @return The file descriptor index for the current process.
  */ 
 int file_open(char *path, int access_mode) {
-    struct proc *curr_proc = myproc(); 
+    struct proc *curr_proc = myproc();
+
+    if (access_mode == T_DEV) {
+        return -1;
+    }
 
     // Finds an open spot in the process file table
     int proc_fd_index = 0;
@@ -112,4 +117,32 @@ int file_close(int fd) {
     }
 
     return 0;
+}
+
+/** Duplicate the file descriptor.
+ * @param fd The file descriptor of the file to duplicate.
+ * @return The new file descriptor index for the current process.
+ */
+int file_dup(int fd) {
+    struct proc *curr_proc = myproc();
+    struct file_info *file_info_ptr = curr_proc->fd_array[fd];
+
+    // Finds an open spot in the process file table
+    int proc_fd_index = 0;
+    while (proc_fd_index < NOFILE && curr_proc->fd_array[proc_fd_index] != NULL)
+    {
+        ++proc_fd_index;   
+    }
+
+    // Error if the process file table is full
+    if (proc_fd_index == NOFILE) {
+        return -1;
+    }
+
+    // Increment the reference count
+    file_info_ptr->refcount++;
+    // Add the file_info to the process file table
+    curr_proc->fd_array[proc_fd_index] = file_info_ptr;
+
+    return proc_fd_index;
 }
