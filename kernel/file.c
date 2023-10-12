@@ -95,6 +95,10 @@ int file_close(int fd) {
     my_proc->files[fd]->ref_count--;
   else {
     int gfd = my_proc->files[fd]->gfd;
+    int inode_refcount = --file_table[gfd].node->ref;
+    if (inode_refcount == 0) {
+      irelease(file_table[gfd].node);
+    }
     file_table[gfd].node = 0;
     file_table[gfd].offset = 0;
     file_table[gfd].mode = 0;
