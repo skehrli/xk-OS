@@ -320,7 +320,7 @@ void write_basic(void) {
 
   strcpy(buf, "world ");
   len = strlen(buf);
-
+  
   if ((i = write(stdout, buf, len)) != len) {
     error("write_basic: wasn't able to write all %d bytes to stdout, wrote %d "
           "bytes ",

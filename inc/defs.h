@@ -212,3 +212,5 @@ int file_open(int, char *);
 int file_close(int);
 int file_read(int, char *, int);
 int file_write(int, char *, int);
+int file_dup(int);
+int file_stat(int, struct stat *);
