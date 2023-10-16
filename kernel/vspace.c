@@ -160,7 +160,7 @@ vrloaddata(struct vregion *r, uint64_t va, struct inode *ip, uint offset, uint s
 void
 vspaceinitcode(struct vspace *vs, char *init, uint64_t size)
 {
-  uint64_t stack;
+  uint64_t stack = SZ_2G;
 
   // code pages and 2 pages reserved for sds
   vs->regions[VR_CODE].va_base = 0x10000;
@@ -174,9 +174,6 @@ vspaceinitcode(struct vspace *vs, char *init, uint64_t size)
   ); 
 
   // add the stack
-  // make room for the stack and (implied) guard
-  stack = vs->regions[VR_CODE].va_base + vs->regions[VR_CODE].size + (2 << PT_SHIFT);
-
   vs->regions[VR_USTACK].va_base = stack;
   vs->regions[VR_USTACK].size = PGSIZE;
   assert(

@@ -200,9 +200,11 @@ Why does xk map kernel and user-application into the same address space? (Why do
 Please describe at least 2 reasons.
 
 #### Question #4
-Why is the xk user malloc (`user/umalloc.c:malloc`) different from the xk kernel malloc (`kernel/kalloc.c:kalloc`)?
+> For both of the following questions we're looking for descriptions at the implementation level of how the user and kernel versions of the given functions differ. e.g.: "foo uses resource A, while bar uses resource B" is roughly the level of detail to go for here. We are not looking for an English transcription of the `git diff` output). We are looking for at least one difference for each function, but put down more if you identify them!
 
-Why is the xk user printf (`user/printf.c:printf`) different from the xk kernel printf (`kernel/console.c:cprintf`)? (How is the user printf implemented?)
+In what ways is the xk user malloc (`user/umalloc.c:malloc`) different from the xk kernel malloc (`kernel/kalloc.c:kalloc`)?
+
+In what ways is the xk user printf (`user/printf.c:printf`) different from the xk kernel printf (`kernel/console.c:cprintf`)?
 
 ## Part 3: Kernel
 

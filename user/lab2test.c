@@ -618,6 +618,7 @@ void exec_ls(void) {
     error("exec_ls: exec ls failed");
   }
   assert(close(fds[1]) == 0); // close pipe write end
+  assert(wait() == pid);
 
   // read outputs by ls
   i = 0;
@@ -640,7 +641,6 @@ void exec_ls(void) {
   if (n < 25) {
     error("exec_ls: child process 'ls' failed to stat all 25 directory entries, only got %d entires", n);
   }
-  assert(wait() == pid);
 
   pass("");
 }
