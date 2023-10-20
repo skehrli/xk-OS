@@ -33,19 +33,22 @@ We will use spinlocks for the system calls that access the `file_info` because t
 
 ### Functions
 
-- `fork`: Create a new process as a copy of the calling process. Returns twice, once in the parent, with the return value of the process ID (pid) of the child, and once in the child, with the return value of 0.
+- `fork`: Create a new process as a copy of the calling process. Returns twice, once in the parent, with the return value of the pid of the child, and once in the child, with the return value of 0.
   - Use `allocproc` to create a new entry in the process table
   - Use `vspacecopy` to copy the parent's virtual address space to the child
   - Duplicate the file descriptors in the new process
   - Duplicate the trap frame in the new process
   - Set the state of the new process to `RUNNABLE`
-- `wait`: Block until the child process exits, and then return the child's exit status.
-  - Wait for the child process to call `exit`
+- `wait`: Sleep until a child process terminates, then return child’s pid.
   - Look for exited children in the process table
+  - Wait for child process to call `exit`
+  - Clean the child process (vspace with `vspacefree` and kernel stack with `kfree`)
 
 - `exit`: Terminate the calling process, and return the exit status to the parent.
+  - Close all open file descriptors.
   - Mark the process as `ZOMBIE`
   - Wake up the parent process
+  - Does not return, but calls `sched` to reschedule the next process
 
 
 #### vspace.c
