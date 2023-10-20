@@ -121,8 +121,37 @@ void userinit(void) {
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
 int fork(void) {
-  // your code here
-  return 0;
+  // Allocate a new process in the process table
+  struct proc *child = allocproc();
+  if (child == 0) {  // allocproc failed
+    return -1;
+  }
+  struct proc *parent = myproc();
+
+  // Copy virtual address space
+  vspaceinit(&child->vspace);
+  vspacecopy(&child->vspace, &parent->vspace);
+
+  // Duplicate file descriptors
+  for (int i = 0; i < NOFILE; i++) {
+    acquire(&ptable.lock);
+    if (parent->files[i] != NULL) {
+      child->files[i] = parent->files[i];
+      child->files[i]->ref_count++;
+    }
+    release(&ptable.lock);
+  }
+
+  // Duplicate trap frame
+  memmove(child->tf, parent->tf, sizeof(struct trap_frame));
+
+  // Set child state to RUNNABLE
+  acquire(&ptable.lock);
+  child->state = RUNNABLE;
+  child->parent = parent;
+  release(&ptable.lock);
+
+  return child->pid;
 }
 
 // Exit the current process.  Does not return.
