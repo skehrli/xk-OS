@@ -20,6 +20,9 @@ struct devsw devsw[NDEV];
 
 static struct file_info file_table[NFILE];
 
+// LAB2
+struct spinlock lock;  // TODO: choose lock granularity
+
 int file_stat(int fd, struct stat *stat_ptr) {
   struct proc *my_proc = (struct proc *)myproc();
   if (my_proc->files[fd] == NULL) {
@@ -52,8 +55,12 @@ int file_dup(int fd_copy) {
   if (fd == -1) {
     return -1;
   }
+
+  acquire(&lock);
   my_proc->files[fd] = my_proc->files[fd_copy];
   my_proc->files[fd_copy]->ref_count++;
+  release(&lock);
+
   return fd;
 }
 
@@ -67,7 +74,11 @@ int file_write(int fd, char *buf, int nr_bytes) {
   if (fi->mode == O_RDONLY)
     return -1;
   int offset = concurrent_writei(fi->node, buf, fi->offset, nr_bytes);
+
+  acquire(&lock);
   my_proc->files[fd]->offset += offset;
+  release(&lock);
+
   return offset;
 }
 
@@ -81,7 +92,11 @@ int file_read(int fd, char *buf, int nr_bytes) {
   if (fi->mode == O_WRONLY)
     return -1;
   int offset = concurrent_readi(fi->node, buf, fi->offset, nr_bytes);
+
+  acquire(&lock);
   my_proc->files[fd]->offset += offset;
+  release(&lock);
+
   return offset;
 }
 
@@ -91,6 +106,8 @@ int file_close(int fd) {
     // no open file at this descriptor
     return -1;
   }
+
+  acquire(&lock);
   if (my_proc->files[fd]->ref_count > 1)
     my_proc->files[fd]->ref_count--;
   else {
@@ -106,6 +123,8 @@ int file_close(int fd) {
     file_table[gfd].path = 0;
     file_table[gfd].gfd = 0;
   }
+  release(&lock);
+
   my_proc->files[fd] = NULL;
   return 0;
 }
@@ -144,6 +163,7 @@ int file_open(int file_mode, char *file_path) {
     return -1;
   }
 
+  acquire(&lock);
   struct file_info fi = {.node = node,
                          .offset = 0,
                          .mode = file_mode,
@@ -152,6 +172,7 @@ int file_open(int file_mode, char *file_path) {
                          .gfd = gfd};
   file_table[gfd] = fi;
   my_proc->files[fd] = &(file_table[gfd]);
+  release(&lock);
 
   return fd;
 }

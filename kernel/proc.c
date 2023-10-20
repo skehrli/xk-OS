@@ -167,6 +167,8 @@ void exit(void) {
       file_close(i);
     }
   }
+  // Wake parent
+  wakeup(my_proc->parent);
 
   acquire(&ptable.lock);
   // Set state to ZOMBIE
@@ -175,8 +177,6 @@ void exit(void) {
   sched();
   release(&ptable.lock);
 
-  // Wake parent
-  wakeup(my_proc->parent);
 }
 
 // Wait for a child process to exit and return its pid.
@@ -199,24 +199,27 @@ int wait(void) {
   }
 
   // Scan through table looking for exited children.
+  acquire(&ptable.lock);
   int has_exited = 0;
   int child_pid = -1;
-  for (int i = 0; i < NPROC && !has_exited; ++i) {
-    acquire(&ptable.lock);
-    if (ptable.proc[i].state == ZOMBIE) {
-      struct proc *child = &ptable.proc[i];
-      child_pid = child->pid;
-      vspacefree(&child->vspace);
-      kfree(child->kstack);
-      *child = (struct proc){ 0 };
-      has_exited = 1;
-    }
-    release(&ptable.lock);
-  }
 
-  if (!has_exited) {
-    sleep(my_proc, &ptable.lock);
+  while (!has_exited) {
+    for (int i = 0; i < NPROC && !has_exited; ++i) {
+      struct proc *child = &ptable.proc[i];
+      if (child->parent == my_proc && child->state == ZOMBIE) {
+        child_pid = child->pid;
+        vspacefree(&child->vspace);
+        kfree(child->kstack);
+        *child = (struct proc){ 0 };
+        has_exited = 1;
+      }
+    }
+
+    if (!has_exited) {
+      sleep(my_proc, &ptable.lock);
+    }
   }
+  release(&ptable.lock);
 
   return child_pid;
 }
