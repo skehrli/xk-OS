@@ -28,11 +28,25 @@ We need to handle multiple processes accessing the global file table `file_table
 
 We will use spinlocks for the system calls that access the `file_info` because the expected wait times are short and sleeplocks are already used to interact with the inode interface with `locki` and `unlocki` in fs.c
 
+- Use spinlocks for global file table
+- Acquire lock before accessing the `file_info` and release it after
+
 ### Functions
 
 - `fork`: Create a new process as a copy of the calling process. Returns twice, once in the parent, with the return value of the process ID (pid) of the child, and once in the child, with the return value of 0.
+  - Use `allocproc` to create a new entry in the process table
+  - Use `vspacecopy` to copy the parent's virtual address space to the child
+  - Duplicate the file descriptors in the new process
+  - Duplicate the trap frame in the new process
+  - Set the state of the new process to `RUNNABLE`
 - `wait`: Block until the child process exits, and then return the child's exit status.
+  - Wait for the child process to call `exit`
+  - Look for exited children in the process table
+
 - `exit`: Terminate the calling process, and return the exit status to the parent.
+  - Mark the process as `ZOMBIE`
+  - Wake up the parent process
+
 
 #### vspace.c
 We will need `vspaceinit` and `vspacecopy` to initialize and copy the virtual address space when creating a new process.
@@ -49,11 +63,12 @@ We will need `vspaceinit` and `vspacecopy` to initialize and copy the virtual ad
 First the functions will be implemented and then we will define the critical sections and implement the synchronization using locks.
 
 ### Time Estimation
+Best / Average / Worst case scenario
 - Synchronization
   - Design (2 hours)
-  - Implementation (2/4/6 hours)
+  - Implementation (2/6/10 hours)
 - Functions
-  - fork (2/3/4 hours)
+  - fork (2/4/6 hours)
   - wait (2/3/4 hours)
   - exit (2/3/4 hours)
 - Edge cases and Error handling (2 hours)
