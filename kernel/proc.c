@@ -149,6 +149,7 @@ int fork(void) {
   acquire(&ptable.lock);
   child->state = RUNNABLE;
   child->parent = parent;
+  child->tf->rax = 0;
   release(&ptable.lock);
 
   return child->pid;
@@ -158,15 +159,66 @@ int fork(void) {
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
 void exit(void) {
-  // your code here
+  struct proc *my_proc = myproc();
+
+  // Close all open files.
+  for (int i = 0; i < NOFILE; ++i) {
+    if (my_proc->files[i] != NULL) {
+      file_close(i);
+    }
+  }
+
+  acquire(&ptable.lock);
+  // Set state to ZOMBIE
+  my_proc->state = ZOMBIE;
+  // Reschedule the next process
+  sched();
+  release(&ptable.lock);
+
+  // Wake parent
+  wakeup(my_proc->parent);
 }
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int wait(void) {
-  // your code here
+  struct proc *my_proc = myproc();
+
+  // Return -1 if this process has no children.
+  int has_children = 0;
+  for (int i = 0; i < NPROC && !has_children; ++i) {
+    acquire(&ptable.lock);
+    if (ptable.proc[i].parent == my_proc) {
+      has_children = 1;
+    }
+    release(&ptable.lock);
+  }
+
+  if (!has_children) {
+    return -1;
+  }
+
   // Scan through table looking for exited children.
-  return -1;
+  int has_exited = 0;
+  int child_pid = -1;
+  for (int i = 0; i < NPROC && !has_exited; ++i) {
+    acquire(&ptable.lock);
+    if (ptable.proc[i].state == ZOMBIE) {
+      struct proc *child = &ptable.proc[i];
+      child_pid = child->pid;
+      vspacefree(&child->vspace);
+      kfree(child->kstack);
+      *child = (struct proc){ 0 };
+      has_exited = 1;
+    }
+    release(&ptable.lock);
+  }
+
+  if (!has_exited) {
+    sleep(my_proc, &ptable.lock);
+  }
+
+  return child_pid;
 }
 
 // Per-CPU process scheduler.
