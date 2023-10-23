@@ -27,13 +27,10 @@ void halt(void) {
 
 void sys_exit(void) {
   // LAB2
-  halt();
+  exit();
 }
 
-int sys_wait(void) { 
-  while (1) {} // REMOVE after implementing wait
-  return wait(); 
-}
+int sys_wait(void) { return wait(); }
 
 int sys_kill(void) {
   int pid;
@@ -46,14 +43,15 @@ int sys_kill(void) {
 int sys_getpid(void) { return myproc()->pid; }
 
 /*
- * arg0: integer value of amount of memory to be added to the heap. If arg0 < 0, treat it as 0.
+ * arg0: integer value of amount of memory to be added to the heap. If arg0 < 0,
+ * treat it as 0.
  *
  * Adds arg0 to the current heap.
  * Returns the previous heap limit address, or -1 on error.
  *
  * Error condition:
  * Insufficient space to allocate the heap.  Note that if some space
- * exists but that space is insufficient to handle the complete request, 
+ * exists but that space is insufficient to handle the complete request,
  * -1 should still be returned, and nothing should be added to the heap.
  */
 int sys_sbrk(void) {

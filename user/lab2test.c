@@ -3,10 +3,10 @@
 #include <stat.h>
 #include <stdarg.h>
 #include <sysinfo.h>
-#include <user.h>
 #include <test.h>
+#include <user.h>
 
-void run_test(char*);
+void run_test(char *);
 void fork_wait_exit_basic(void);
 void fork_wait_exit_cleanup(void);
 void fork_wait_exit_multiple(void);
@@ -35,7 +35,7 @@ int main() {
     error("fork failed");
     exit();
   }
-
+  // printf(1, "this is the child\n");
   if (pid == 0) {
     while (true) {
       shell_prompt("lab2");
@@ -56,13 +56,13 @@ int main() {
   return 0;
 }
 
-void run_test(char* test) {
+void run_test(char *test) {
   if (strcmp(test, "part1\n") == 0) {
     fork_wait_exit_basic();
     fork_wait_exit_cleanup();
     fork_wait_exit_multiple();
     fork_wait_exit_50();
-    fork_wait_exit_tree();  
+    fork_wait_exit_tree();
     fork_fd_test();
     pass("lab2 part1 tests!");
   } else if (strcmp(test, "part2\n") == 0) {
@@ -78,7 +78,7 @@ void run_test(char* test) {
     fork_wait_exit_cleanup();
     fork_wait_exit_multiple();
     fork_wait_exit_50();
-    fork_wait_exit_tree();  
+    fork_wait_exit_tree();
     fork_fd_test();
     pipe_test();
     pipe_closed_ends();
@@ -114,7 +114,7 @@ void run_test(char* test) {
   } else if (strcmp(test, "kill_test\n") == 0) {
     kill_test();
   } else {
-    printf(stderr, "input matches no test: %s" , test);
+    printf(stderr, "input matches no test: %s", test);
   }
 }
 
@@ -138,10 +138,12 @@ void fork_wait_exit_basic(void) {
   // only executed by the parent
   tmp = wait();
   if (tmp != pid) {
-    error("fork_wait_exit_basic: wait returned wrong value %d, expecting child pid %d", tmp, pid);
+    error("fork_wait_exit_basic: wait returned wrong value %d, expecting child "
+          "pid %d",
+          tmp, pid);
   }
 
-  pass("");  
+  pass("");
 }
 
 // test whether all of child's memory is cleaned up after wait and exit
@@ -153,7 +155,7 @@ void fork_wait_exit_cleanup(void) {
 
   // save pages used before fork
   assert(sysinfo(&info) == 0);
-  used_pages = info.pages_in_use; 
+  used_pages = info.pages_in_use;
 
   pid = fork();
   if (pid == 0) {
@@ -164,17 +166,21 @@ void fork_wait_exit_cleanup(void) {
   // only executed by the parent
   tmp = wait();
   if (tmp != pid) {
-    error("fork_wait_exit_cleanup: wait returned wrong value %d, expecting child pid %d", tmp, pid);
+    error("fork_wait_exit_cleanup: wait returned wrong value %d, expecting "
+          "child pid %d",
+          tmp, pid);
   }
 
   // check pages post exit
   assert(sysinfo(&info) == 0);
   if (info.pages_in_use != used_pages) {
     assert(info.pages_in_use >= used_pages);
-    error("fork_wait_exit_cleanup: child's memory is not fully cleaned up after wait and exit, %d pages of memory lost", info.pages_in_use - used_pages);
+    error("fork_wait_exit_cleanup: child's memory is not fully cleaned up "
+          "after wait and exit, %d pages of memory lost",
+          info.pages_in_use - used_pages);
   }
 
-  pass("");  
+  pass("");
 }
 
 void fork_wait_exit_multiple(void) {
@@ -195,7 +201,9 @@ void fork_wait_exit_multiple(void) {
   }
 
   if (n != nproc) {
-    error("fork_wait_exit_multiple: tried to fork %d times but only succeeded %d times", nproc, n);
+    error("fork_wait_exit_multiple: tried to fork %d times but only succeeded "
+          "%d times",
+          nproc, n);
   }
 
   for (; n > 0; n--) {
@@ -238,7 +246,6 @@ void fork_wait_exit_50(void) {
   pass("");
 }
 
-
 static void tree_helper(int depth) {
   int pids[3];
   int i, j, p;
@@ -250,13 +257,14 @@ static void tree_helper(int depth) {
   for (i = 0; i < 3; i++) {
     pids[i] = fork();
     if (pids[i] < 0) {
-      error("tree_helper: failed to fork child at depth %d, iteration %d", depth, i); 
+      error("tree_helper: failed to fork child at depth %d, iteration %d",
+            depth, i);
     }
 
-    if (pids[i] == 0) { // child case
-      tree_helper(depth-1); // each child spawns 3 children if depth > 0
+    if (pids[i] == 0) {       // child case
+      tree_helper(depth - 1); // each child spawns 3 children if depth > 0
       exit();
-      error("tree_helper: returned from exit"); 
+      error("tree_helper: returned from exit");
     }
   }
 
@@ -276,7 +284,9 @@ static void tree_helper(int depth) {
 
     // unable to find the waited pid in the child list
     if (j == 3) {
-      error("tree_helper: returned pid was not a child or has already been waited, wait returned %d", p);
+      error("tree_helper: returned pid was not a child or has already been "
+            "waited, wait returned %d",
+            p);
     }
   }
 
@@ -318,19 +328,22 @@ void fork_fd_test(void) {
 
   // only executed by parent
   assert(wait() == pid);
-  
+
   // child should have advanced file offsets to 10 bytes, read the next 10 bytes
   if (read(fd1, buf, 10) != 10) {
     error("fork_fd_test: failed to read 10 bytes from fd1");
   }
 
   if (strcmp("ppppppppp\n", buf) != 0) {
-    error("fork_fd_test: should have reead 9 p's (and a newline), but read '%s' instead", buf);
+    error("fork_fd_test: should have reead 9 p's (and a newline), but read "
+          "'%s' instead",
+          buf);
   }
 
-  assert(close(fd1) == 0); 
+  assert(close(fd1) == 0);
 
-  // set up more file descriptors and make sure child inherits the current view at fork
+  // set up more file descriptors and make sure child inherits the current view
+  // at fork
 
   assert((fd2 = open("l2_share.txt", O_RDONLY)) > -1);
   assert((fd3 = open("l2_share.txt", O_RDONLY)) > -1);
@@ -377,9 +390,10 @@ void pipe_test(void) {
   if (pid < 0) {
     error("pipe_test: fork failed");
   }
-  
+
   if (pid == 0) { // child case
-    assert(close(fds[0]) != -1); // closes the read end, child only writes to the pipe
+    assert(close(fds[0]) !=
+           -1); // closes the read end, child only writes to the pipe
 
     // fill buffer with 0-499
     for (i = 0; i < 500; i++) {
@@ -387,8 +401,8 @@ void pipe_test(void) {
     }
 
     // starting write size
-    cc = sizeof(buf)/2;
-    while (total < 500 && (n = write(fds[1], buf+total, cc)) > 0) {
+    cc = sizeof(buf) / 2;
+    while (total < 500 && (n = write(fds[1], buf + total, cc)) > 0) {
       total += n;
       cc = cc / 2;
       if (cc == 0 || total + cc > 500) {
@@ -397,24 +411,27 @@ void pipe_test(void) {
     }
 
     if (total != 500) {
-      error("pipe_test: writer failed to write alll 500 bytes, wrote %d bytes", total);
+      error("pipe_test: writer failed to write alll 500 bytes, wrote %d bytes",
+            total);
     }
     exit();
   }
-  
+
   // only executed by parent
 
-  assert(close(fds[1]) != -1); // closes the write end, parent only reads from the pipe
+  assert(close(fds[1]) !=
+         -1); // closes the write end, parent only reads from the pipe
 
   cc = 1;
   while ((n = read(fds[0], buf, cc)) > 0) {
     // check validity of the read
     for (i = 0; i < n; i++) {
-      if ((buf[i] & 0xff) != (seq++ & 0xff)) {        
-        error("pipe_test: read incorrect value %d, expecting %d\n", buf[i] & 0xff, seq & 0xff);
+      if ((buf[i] & 0xff) != (seq++ & 0xff)) {
+        error("pipe_test: read incorrect value %d, expecting %d\n",
+              buf[i] & 0xff, seq & 0xff);
       }
     }
-    
+
     total += n;
     cc = cc * 2;
     if (cc > sizeof(buf)) {
@@ -456,7 +473,7 @@ void pipe_closed_ends(void) {
   }
 
   if (pid == 0) { // child case
-    while (total < len && (n = write(fds[1], buf+total, cc)) > 0) {
+    while (total < len && (n = write(fds[1], buf + total, cc)) > 0) {
       total += n;
       if (total != len) {
         cc = len - total;
@@ -464,7 +481,8 @@ void pipe_closed_ends(void) {
     }
 
     if (total != len) {
-      error("pipe_closed_ends: writer failed to write %d bytes, wrote %d bytes", len, total);
+      error("pipe_closed_ends: writer failed to write %d bytes, wrote %d bytes",
+            len, total);
     }
 
     exit(); // should close all opened fds, including read and write ends
@@ -480,9 +498,11 @@ void pipe_closed_ends(void) {
 
   // read all content from the pipe after all write ends are closed
   char buf2[20];
-  while(cc > 0) {
-    if ((n = read(fds[0], buf2+total, cc)) <= 0) {
-      error("pipe_closed_ends: failed to read from a non empty pipe, read returned %d", n);
+  while (cc > 0) {
+    if ((n = read(fds[0], buf2 + total, cc)) <= 0) {
+      error("pipe_closed_ends: failed to read from a non empty pipe, read "
+            "returned %d",
+            n);
     }
     total += n;
     cc -= n;
@@ -494,7 +514,8 @@ void pipe_closed_ends(void) {
   }
 
   if (strcmp(buf, buf2) != 0) {
-    error("pipe_closed_ends: read wrong data from pipe, read %s instead of %s", buf2, buf);
+    error("pipe_closed_ends: read wrong data from pipe, read %s instead of %s",
+          buf2, buf);
   }
 
   // close read ends, all pipe fds should be closed by now
@@ -503,13 +524,13 @@ void pipe_closed_ends(void) {
   // start a new pipe to test for write to closed read ends
   assert(pipe(fds) != -1);
   assert(write(fds[1], buf, len) >= 0); // write should succeed
-  assert(close(fds[0]) != -1);  // close read end
+  assert(close(fds[0]) != -1);          // close read end
 
   // try to write to a pipe with no more read end
   if (write(fds[1], buf, len) != -1) {
     error("pipe_closed_ends: can write to a pipe with no read ends open");
   }
-  assert(close(fds[1]) != -1);  // close read end
+  assert(close(fds[1]) != -1); // close read end
 
   pass("");
 }
@@ -529,7 +550,7 @@ void exec_bad_args(void) {
       error("exec_bad_args: invalid argv");
     }
     // test for invalid argv[1]
-    char *argv3[] = { "ls", (char *) 0xf00df00d, 0 };
+    char *argv3[] = {"ls", (char *)0xf00df00d, 0};
     if (exec("ls", argv3) != -1) {
       error("exec_bad_args: argv[1] out of stack");
     }
@@ -540,7 +561,7 @@ void exec_bad_args(void) {
   pass("");
 }
 
-int get_token(char **ps, char *es, char**start, int* end) {
+int get_token(char **ps, char *es, char **start, int *end) {
   char *s;
   int ret;
   char whitespace[] = " \t\r\n\v";
@@ -550,14 +571,14 @@ int get_token(char **ps, char *es, char**start, int* end) {
     s++;
   ret = *s;
   switch (*s) {
-    case 0:
-      break;
-    default:
-      *start = s;
-      ret = 'a';
-      while (s < es && !strchr(whitespace, *s))
-        s++;
-      break;
+  case 0:
+    break;
+  default:
+    *start = s;
+    ret = 'a';
+    while (s < es && !strchr(whitespace, *s))
+      s++;
+    break;
   }
   *end = s - *start;
   while (s < es && strchr(whitespace, *s))
@@ -566,10 +587,10 @@ int get_token(char **ps, char *es, char**start, int* end) {
   return ret;
 }
 
-void check_ls_output(char* line, int line_len) {
+void check_ls_output(char *line, int line_len) {
   int i, tok_len;
   char *end_line;
-  char* toks[5];
+  char *toks[5];
   struct stat stat_info;
 
   printf(stdout, "%s\n", line); // ls line output
@@ -578,7 +599,7 @@ void check_ls_output(char* line, int line_len) {
   tok_len = 0;
   end_line = line + line_len;
 
-  while(get_token(&line, end_line, &toks[i], &tok_len)) {
+  while (get_token(&line, end_line, &toks[i], &tok_len)) {
     if (i == 4) {
       error("check_ls_output: too many tokens");
     }
@@ -609,7 +630,7 @@ void exec_ls(void) {
   if ((pid = fork()) < 0) {
     error("exec_ls: fork failed");
   }
-  if (pid == 0) { // child case
+  if (pid == 0) {               // child case
     assert(close(fds[0]) == 0); // close pipe read end
     assert(close(stdout) == 0);
     assert(dup(fds[1]) == stdout); // redirect pipe write end to stdout
@@ -627,11 +648,11 @@ void exec_ls(void) {
 
   printf(stdout, "\n------ ls output -------\n");
 
-  while(read(fds[0], buf+total, 1) > 0) {
+  while (read(fds[0], buf + total, 1) > 0) {
     if (buf[total] == '\n') {
       buf[total] = '\0';
-      check_ls_output(buf+i, total-i);
-      i = total+1;
+      check_ls_output(buf + i, total - i);
+      i = total + 1;
       n++;
     }
     total++;
@@ -639,7 +660,9 @@ void exec_ls(void) {
   printf(stdout, "-------------------------\n");
 
   if (n < 25) {
-    error("exec_ls: child process 'ls' failed to stat all 25 directory entries, only got %d entires", n);
+    error("exec_ls: child process 'ls' failed to stat all 25 directory "
+          "entries, only got %d entires",
+          n);
   }
 
   pass("");
@@ -657,9 +680,10 @@ void exec_echo(void) {
     error("exec_echo: fork failed");
   }
 
-  if (pid == 0) { // child case
-    assert(close(stdout) == 0);     // close child's inherited stdout
-    assert(dup(fds[1]) == stdout);  // redirect pipe write end to stdout, future writes to stdout can be read from the pipe
+  if (pid == 0) {                  // child case
+    assert(close(stdout) == 0);    // close child's inherited stdout
+    assert(dup(fds[1]) == stdout); // redirect pipe write end to stdout, future
+                                   // writes to stdout can be read from the pipe
     exec("echo", echoargv);
     error("exec_echo: exec echo failed");
   }
@@ -675,7 +699,7 @@ void exec_echo(void) {
 
   int byte_to_read = 15;
   int count = 0;
-  
+
   while (count < 12) {
     int ret = read(fds[0], buf + count, byte_to_read);
     if (ret <= 0) {
@@ -687,7 +711,8 @@ void exec_echo(void) {
 
   buf[count] = 0;
   if (strcmp(buf, expected) != 0) {
-    error("exec_echo: echo produced invalid output, expected %s, got %s", expected, buf);
+    error("exec_echo: echo produced invalid output, expected %s, got %s",
+          expected, buf);
   }
 
   pass("");
@@ -713,7 +738,7 @@ void kill_test(void) {
     for (;;)
       ;
   }
-    
+
   assert(pipe(fds) == 0);
   pid3 = fork();
   assert(pid3 != -1);

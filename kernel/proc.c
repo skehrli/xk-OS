@@ -122,7 +122,29 @@ void userinit(void) {
 // Caller must set state of returned proc to RUNNABLE.
 int fork(void) {
   // your code here
-  return 0;
+  struct proc *p = myproc();
+  struct proc *proc;
+  if ((proc = allocproc()) == 0) {
+    return -1;
+  }
+  assertm(vspaceinit(&proc->vspace) == 0,
+          "failed initializing virtual address space");
+  vspacecopy(&proc->vspace, &p->vspace);
+  memmove(proc->tf, p->tf, sizeof(*proc->tf));
+  acquire(&ptable.lock);
+  proc->tf->rax = 0;
+  proc->parent = p;
+  for (int fd = 0; fd < NOFILE; fd++) {
+    if (p->files[fd] == NULL)
+      continue;
+    proc->files[fd] = p->files[fd];
+    proc->files[fd]->ref_count++;
+  }
+  proc->state = RUNNABLE;
+  int procID = proc->pid;
+  release(&ptable.lock);
+  vspaceinstall(p);
+  return procID;
 }
 
 // Exit the current process.  Does not return.
@@ -130,6 +152,27 @@ int fork(void) {
 // until its parent calls wait() to find out it exited.
 void exit(void) {
   // your code here
+  acquire(&ptable.lock);
+  struct proc *p = myproc();
+  for (int fd = 0; fd < NOFILE; fd++) {
+    if (p->files[fd] != NULL)
+      file_close(fd);
+  }
+  p->state = ZOMBIE;
+  // find process who is runnable and has me as parent
+  for (int i = 0; i < NPROC; i++) {
+    if (ptable.proc[i].parent == NULL)
+      continue;
+    if (ptable.proc[i].parent->pid == myproc()->pid) {
+      ptable.proc[i].parent = initproc;
+      if (initproc->state == SLEEPING) {
+        wakeup1(initproc);
+      }
+    }
+  }
+  wakeup1(p->parent);
+  sched();
+  release(&ptable.lock);
 }
 
 // Wait for a child process to exit and return its pid.
@@ -137,6 +180,32 @@ void exit(void) {
 int wait(void) {
   // your code here
   // Scan through table looking for exited children.
+  acquire(&ptable.lock);
+  int hasChildren = 0;
+  while (true) {
+    for (int i = 0; i < NPROC; i++) {
+      struct proc *p = &ptable.proc[i];
+      if (p->parent == myproc()) {
+        hasChildren = 1;
+      }
+      if ((p->parent == myproc()) && (p->state == ZOMBIE)) {
+        int procID = p->pid;
+        vspacefree(&p->vspace);
+        kfree(p->kstack);
+        p->kstack = 0;
+        p->parent = 0;
+        p->killed = 0;
+        p->pid = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return procID;
+      }
+    }
+    if (!hasChildren)
+      break;
+    sleep(myproc(), &ptable.lock);
+  }
+  release(&ptable.lock);
   return -1;
 }
 
