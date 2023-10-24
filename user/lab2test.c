@@ -67,6 +67,7 @@ void run_test(char *test) {
     pass("lab2 part1 tests!");
   } else if (strcmp(test, "part2\n") == 0) {
     pipe_test();
+    printf(1, "managed pipe test");
     pipe_closed_ends();
     exec_bad_args();
     exec_ls();

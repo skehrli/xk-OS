@@ -41,15 +41,11 @@ int file_stat(int fd, struct stat *stat_ptr) {
 
 int file_dup(int fd_copy) {
   struct proc *my_proc = (struct proc *)myproc();
-  acquire(&file_table_lock);
-  if (my_proc->files[fd_copy] == NULL) {
+  struct file_info *file = myproc()->files[fd_copy];
+  if (file == NULL) {
     // no open file at this descriptor
-    release(&file_table_lock);
     return -1;
   }
-  if (my_proc->files[fd_copy]->node == NULL)
-    return -1;
-  release(&file_table_lock);
   int fd = -1;
   for (int i = 0; i < NOFILE; i++) {
     if (my_proc->files[i] == NULL) {
@@ -60,44 +56,106 @@ int file_dup(int fd_copy) {
   if (fd == -1) {
     return -1;
   }
+
+  if(file->isPipe) {
+    if(file->pipe == NULL) {
+      return -1;
+    }
+    acquire(&file->pipe->lock);
+    if(file->mode==O_RDONLY) file->pipe->read_count++;
+    if(file->mode==O_WRONLY) file->pipe->write_count++;
+    release(&file->pipe->lock);
+    acquire(&file_table_lock);
+    my_proc->files[fd] = file;
+    release(&file_table_lock);
+    return 0;
+  }
+  if (file->node == NULL)
+    return -1;
   acquire(&file_table_lock);
-  my_proc->files[fd] = my_proc->files[fd_copy];
-  my_proc->files[fd_copy]->ref_count++;
+  my_proc->files[fd] = file;
+  file->ref_count++;
   release(&file_table_lock);
   return fd;
 }
 
-int file_write(int fd, char *buf, int nr_bytes) {
-  struct proc *my_proc = (struct proc *)myproc();
-  acquire(&file_table_lock);
-  if (my_proc->files[fd] == NULL) {
-    // no open file at this descriptor
-    release(&file_table_lock);
+int pipe_write(int fd, char *buf, int nr_bytes) {
+  if(nr_bytes > PIPE_BUFFER_SIZE) return -1;
+  struct file_info *file = myproc()->files[fd];
+  struct pipe *pipe = file->pipe;
+  acquire(&pipe->lock);
+  if(pipe->read_count==0) {
+    release(&pipe->lock);
     return -1;
   }
-  struct file_info *fi = my_proc->files[fd];
-  release(&file_table_lock);
-  if (fi->mode == O_RDONLY)
+  while(PIPE_BUFFER_SIZE - pipe->write_offset + pipe->read_offset < nr_bytes) {
+    if(pipe->read_count == 0) {
+      release(&pipe->lock);
+      return -1;
+    }
+    sleep(&pipe->notFull, &pipe->lock);
+  }
+  memmove((void *)(pipe->buffer+(pipe->write_offset%PIPE_BUFFER_SIZE)),(void *)buf, nr_bytes);
+  pipe->write_offset += nr_bytes;
+  wakeup(&pipe->notEmpty);
+  release(&pipe->lock);
+  return nr_bytes;
+}
+
+int file_write(int fd, char *buf, int nr_bytes) {
+  struct proc *my_proc = (struct proc *)myproc();
+  struct file_info *file = my_proc->files[fd];
+  if (file == NULL) {
     return -1;
-  int offset = concurrent_writei(fi->node, buf, fi->offset, nr_bytes);
+  }
+  if (file->mode == O_RDONLY)
+    return -1;
+  if(file->isPipe) {
+    return pipe_write(fd, buf, nr_bytes);
+  }
+  int offset = concurrent_writei(file->node, buf, file->offset, nr_bytes);
   acquire(&file_table_lock);
   my_proc->files[fd]->offset += offset;
   release(&file_table_lock);
   return offset;
 }
 
+
+int pipe_read(int fd, char *buf, int nr_bytes) {
+  struct file_info *file = myproc()->files[fd];
+  struct pipe *pipe = file->pipe;
+  acquire(&pipe->lock);
+  if(pipe->write_count == 0) {
+    nr_bytes = pipe->write_offset - pipe->read_offset;
+    goto read;
+  }
+  while(pipe->write_offset - pipe->read_offset < nr_bytes) {
+    if(pipe->write_count == 0)  {
+      nr_bytes = pipe->write_offset - pipe->read_offset;
+      goto read;
+    }
+    sleep(&pipe->notEmpty, &pipe->lock);
+  }
+read:
+  memmove((void *)buf,(void *)(pipe->buffer+(pipe->read_offset%PIPE_BUFFER_SIZE)), nr_bytes);
+  pipe->read_offset += nr_bytes;
+  wakeup(&pipe->notFull);
+  release(&pipe->lock);
+  return nr_bytes;
+}
+
 int file_read(int fd, char *buf, int nr_bytes) {
   struct proc *my_proc = (struct proc *)myproc();
-  acquire(&file_table_lock);
-  if (my_proc->files[fd] == NULL) {
+  struct file_info *fi = myproc()->files[fd];
+  if (fi == NULL) {
     // no open file at this descriptor
-    release(&file_table_lock);
     return -1;
   }
-  struct file_info *fi = my_proc->files[fd];
-  release(&file_table_lock);
   if (fi->mode == O_WRONLY)
     return -1;
+  if(fi->isPipe) {
+    return pipe_read(fd, buf, nr_bytes);
+  }
   int offset = concurrent_readi(fi->node, buf, fi->offset, nr_bytes);
   acquire(&file_table_lock);
   my_proc->files[fd]->offset += offset;
@@ -106,17 +164,57 @@ int file_read(int fd, char *buf, int nr_bytes) {
 }
 
 int file_close(int fd) {
-  struct proc *my_proc = (struct proc *)myproc();
-  acquire(&file_table_lock);
-  if (my_proc->files[fd] == NULL) {
+  struct file_info *file = myproc()->files[fd];
+  if (file == NULL) {
     // no open file at this descriptor
-    release(&file_table_lock);
     return -1;
   }
-  if (my_proc->files[fd]->ref_count > 1)
-    my_proc->files[fd]->ref_count--;
+  acquire(&file_table_lock);
+  if(file->isPipe) {
+    if(file->pipe == NULL) return -1;
+    acquire(&file->pipe->lock);
+    if(file->mode == O_RDONLY) {
+      if(--file->pipe->read_count == 0) {
+        if(file->pipe->write_count == 0) {
+          release(&file->pipe->lock);
+          kfree((char *)file->pipe);
+        } else {
+          wakeup(&file->pipe->notFull);
+          release(&file->pipe->lock);
+        }
+        file_table[file->gfd].pipe = NULL;
+        file_table[file->gfd].offset = 0;
+        file_table[file->gfd].mode = 0;
+        file_table[file->gfd].ref_count = 0;
+        file_table[file->gfd].gfd = 0;
+      }
+    } else {
+      if(--file->pipe->write_count == 0) {
+        if(file->pipe->read_count == 0) {
+          release(&file->pipe->lock);
+          kfree((char *)file->pipe);
+        } else {
+          wakeup(&file->pipe->notEmpty);
+          release(&file->pipe->lock);
+        }
+        file_table[file->gfd].pipe = NULL;
+        file_table[file->gfd].offset = 0;
+        file_table[file->gfd].mode = 0;
+        file_table[file->gfd].ref_count = 0;
+        file_table[file->gfd].gfd = 0;
+      }
+    }
+    if(file->pipe != NULL) {
+      release(&file->pipe->lock);
+    }
+    release(&file_table_lock);
+    myproc()->files[fd] = NULL;
+    return 0;
+  }
+  if (file->ref_count > 1)
+    file->ref_count--;
   else {
-    int gfd = my_proc->files[fd]->gfd;
+    int gfd = file->gfd;
     int inode_refcount = --file_table[gfd].node->ref;
     if (inode_refcount == 0) {
       irelease(file_table[gfd].node);
@@ -129,7 +227,7 @@ int file_close(int fd) {
     file_table[gfd].gfd = 0;
   }
   release(&file_table_lock);
-  my_proc->files[fd] = NULL;
+  myproc()->files[fd] = NULL;
   return 0;
 }
 
@@ -145,7 +243,6 @@ int file_open(int file_mode, char *file_path) {
   }
 
   int fd = -1;
-  acquire(&file_table_lock);
   for (int i = 0; i < NOFILE; i++) {
     if (my_proc->files[i] == NULL) {
       fd = i;
@@ -153,12 +250,11 @@ int file_open(int file_mode, char *file_path) {
     }
   }
   if (fd == -1) {
-    release(&file_table_lock);
     return -1;
   }
 
   int gfd = -1;
-
+  acquire(&file_table_lock);
   for (int i = 0; i < NFILE; i++) {
     if (file_table[i].ref_count)
       continue;
@@ -171,6 +267,8 @@ int file_open(int file_mode, char *file_path) {
     return -1;
   }
   struct file_info fi = {.node = node,
+                         .pipe = NULL,
+                         .isPipe = 0,
                          .offset = 0,
                          .mode = file_mode,
                          .ref_count = 1,
@@ -181,4 +279,64 @@ int file_open(int file_mode, char *file_path) {
   release(&file_table_lock);
 
   return fd;
+}
+
+int pipe(int *fd_arr) {
+  struct pipe *pipe;
+  if((pipe = (struct pipe *)kalloc()) == 0) {
+      return -1;
+  }
+  pipe->read_count = 1;
+  pipe->write_count = 1;
+  pipe->read_offset = 0;
+  pipe->write_offset = 0;
+  initlock(&pipe->lock, "pipelock");
+  
+  int j = 0;
+  for (int i = 0; i < NOFILE; i++) {
+    if (myproc()->files[i] == NULL) {
+      fd_arr[j++] = i;
+      if(j == 2) break;
+    }
+  }
+  if (fd_arr[1] == -1) {
+    return -1;
+  }
+
+  j = 0;
+  int gfd[2] = {-1,-1};
+  acquire(&file_table_lock);
+  for (int i = 0; i < NFILE; i++) {
+    if (file_table[i].ref_count)
+      continue;
+    gfd[j++] = i;
+    if(j == 2) break;
+  }
+  if (gfd[1] == -1) {
+    // no free global file descriptor
+    release(&file_table_lock);
+    return -1;
+  }
+  struct file_info fi_read = {.node = NULL,
+                         .pipe = pipe,
+                         .isPipe = 1,
+                         .offset = 0,
+                         .mode = O_RDONLY,
+                         .ref_count = 1,
+                         .path = NULL,
+                         .gfd = gfd[0]};
+  struct file_info fi_write = {.node = NULL,
+                         .pipe = pipe,
+                         .isPipe = 1,
+                         .offset = 0,
+                         .mode = O_WRONLY,
+                         .ref_count = 1,
+                         .path = NULL,
+                         .gfd = gfd[1]};
+  file_table[gfd[0]] = fi_read;
+  file_table[gfd[1]] = fi_write;
+  myproc()->files[fd_arr[0]] = &(file_table[gfd[0]]);
+  myproc()->files[fd_arr[1]] = &(file_table[gfd[1]]);
+  release(&file_table_lock);
+  return 0;
 }

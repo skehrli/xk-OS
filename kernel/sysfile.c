@@ -148,7 +148,12 @@ int sys_exec(void) {
 
 int sys_pipe(void) {
   // LAB2
-  return -1;
+  int *fd_arr;
+  if (argptr(0, (char **)&fd_arr, 2*sizeof(int)) < 0) {
+    // invalid arguments
+    return -1;
+  }
+  return pipe(fd_arr);
 }
 
 int sys_unlink(void) {

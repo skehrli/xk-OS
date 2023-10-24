@@ -5,6 +5,7 @@
 #include <memlayout.h>
 #include <mmu.h>
 #include <param.h>
+#include <fcntl.h>
 #include <proc.h>
 #include <spinlock.h>
 #include <trap.h>
@@ -138,7 +139,15 @@ int fork(void) {
     if (p->files[fd] == NULL)
       continue;
     proc->files[fd] = p->files[fd];
-    proc->files[fd]->ref_count++;
+    if(proc->files[fd]->isPipe) {
+      if(proc->files[fd]->mode == O_RDONLY && proc->files[fd]->pipe != NULL) {
+        proc->files[fd]->pipe->read_count++;
+      } else if(proc->files[fd]->mode == O_WRONLY && proc->files[fd]->pipe != NULL) {
+        proc->files[fd]->pipe->write_count++;
+      }
+    } else {
+      proc->files[fd]->ref_count++;
+    }
   }
   proc->state = RUNNABLE;
   int procID = proc->pid;
@@ -152,18 +161,18 @@ int fork(void) {
 // until its parent calls wait() to find out it exited.
 void exit(void) {
   // your code here
-  acquire(&ptable.lock);
   struct proc *p = myproc();
   for (int fd = 0; fd < NOFILE; fd++) {
     if (p->files[fd] != NULL)
       file_close(fd);
   }
+  acquire(&ptable.lock);
   p->state = ZOMBIE;
   // find process who is runnable and has me as parent
   for (int i = 0; i < NPROC; i++) {
     if (ptable.proc[i].parent == NULL)
       continue;
-    if (ptable.proc[i].parent->pid == myproc()->pid) {
+    if (ptable.proc[i].parent->pid == p->pid) {
       ptable.proc[i].parent = initproc;
       if (initproc->state == SLEEPING) {
         wakeup1(initproc);
@@ -183,8 +192,7 @@ int wait(void) {
   acquire(&ptable.lock);
   int hasChildren = 0;
   while (true) {
-    for (int i = 0; i < NPROC; i++) {
-      struct proc *p = &ptable.proc[i];
+    for (struct proc *p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
       if (p->parent == myproc()) {
         hasChildren = 1;
       }
