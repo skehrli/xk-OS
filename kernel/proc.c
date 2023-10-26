@@ -167,10 +167,21 @@ void exit(void) {
       file_close(i);
     }
   }
-  // Wake parent
-  wakeup(my_proc->parent);
 
+  // Find process who is runnable and has me as parent
   acquire(&ptable.lock);
+  for (int i = 0; i < NPROC; i++) {
+    struct proc *parent = ptable.proc[i].parent;
+    if (parent != NULL && parent->pid == my_proc->pid) {
+      parent = initproc;
+      if (initproc->state == SLEEPING) {
+        wakeup1(initproc);
+      }
+    }
+  }
+
+  // Wake parent
+  wakeup1(my_proc->parent);
   // Set state to ZOMBIE
   my_proc->state = ZOMBIE;
   // Reschedule the next process
@@ -211,7 +222,8 @@ int wait(void) {
         vspacefree(&child->vspace);
         kfree(child->kstack);
         *child = (struct proc){ 0 };
-        has_exited = 1;
+        release(&ptable.lock);
+        return child_pid;
       }
     }
 
