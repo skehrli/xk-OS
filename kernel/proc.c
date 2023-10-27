@@ -5,6 +5,7 @@
 #include <memlayout.h>
 #include <mmu.h>
 #include <param.h>
+#include <fcntl.h>
 #include <proc.h>
 #include <spinlock.h>
 #include <trap.h>
@@ -133,11 +134,19 @@ int fork(void) {
   vspacecopy(&child->vspace, &parent->vspace);
 
   // Duplicate file descriptors
-  for (int i = 0; i < NOFILE; i++) {
+  for (int fd = 0; fd < NOFILE; fd++) {
     acquire(&ptable.lock);
-    if (parent->files[i] != NULL) {
-      child->files[i] = parent->files[i];
-      child->files[i]->ref_count++;
+    if (parent->files[fd] != NULL) {
+      child->files[fd] = parent->files[fd];
+      if(child->files[fd]->isPipe) {
+        if(child->files[fd]->mode == O_RDONLY && child->files[fd]->pipe != NULL) {
+          child->files[fd]->pipe->read_count++;
+        } else if(child->files[fd]->mode == O_WRONLY && child->files[fd]->pipe != NULL) {
+          child->files[fd]->pipe->write_count++;
+        }
+      } else {
+        child->files[fd]->ref_count++;
+      }
     }
     release(&ptable.lock);
   }

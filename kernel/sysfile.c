@@ -146,9 +146,28 @@ int sys_exec(void) {
   return -1;
 }
 
+/*
+ * arg0: int * [2] [pointer to an array of two file descriptors]
+ *
+ * Creates a pipe and two open file descriptors. The file descriptors
+ * are written to the array at arg0, with arg0[0] the read end of the 
+ * pipe and arg0[1] as the write end of the pipe.
+ *
+ * return 0 on success; returns -1 on error
+ *
+ * Errors:
+ * Some address within [arg0, arg0+2*sizeof(int)] is invalid
+ * kernel does not have space to create pipe
+ * kernel does not have two available file descriptors
+ */
 int sys_pipe(void) {
   // LAB2
-  return -1;
+  int *fd_arr;
+  if (argptr(0, (char **)&fd_arr, 2*sizeof(int)) < 0) {
+    // invalid arguments
+    return -1;
+  }
+  return pipe(fd_arr);
 }
 
 int sys_unlink(void) {

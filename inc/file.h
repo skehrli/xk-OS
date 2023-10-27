@@ -3,15 +3,31 @@
 #include <extent.h>
 #include <sleeplock.h>
 
+#define PIPE_BUFFER_SIZE 2048
+
 // an abstraction on top of inodes
 // allows for an I/O interface for user processes
 struct file_info {
   struct inode *node;
+  struct pipe *pipe;
+  int isPipe;
   uint offset; // how far we've read
   int mode;    // defined in inc/fcntl.h
   uint ref_count;
   char *path;
   uint gfd; // global file descriptor (in global file table)
+};
+
+
+struct pipe {
+  uint read_count;
+  uint write_count;
+  uint read_offset;
+  uint write_offset;
+  uint notFull;   // condition variable
+  uint notEmpty;  // condition variable
+  struct spinlock lock;
+  char buffer[PIPE_BUFFER_SIZE];
 };
 
 // in-memory copy of an inode
