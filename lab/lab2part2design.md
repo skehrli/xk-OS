@@ -19,16 +19,13 @@ Execute a user program. The program is loaded into the virtual address space of 
 
 - `pipe`: Create a pipe and two file descriptors for reading and writing.
   - Allocate a (4KB) page for the pipe's buffer and metadata using `kalloc`.
-  - Open a pipe with the parent, then fork. The child process inherits the file descriptors of the parent.
-  - Close the parent's reading file descriptor and the child's writing file descriptor.
   - Returns two file descriptors, one for reading and one for writing.
 
 - `exec`: Execute an user program on the existing process.
-  - Create a new temporary address space using `vspaceinit`.
+  - Create a new address space using `vspaceinit`.
   - Read and load the program using `vspaceloadcode`.
   - Setup and initialize the user stack using `vspaceinitstack`.
   - Copy the arguments from the current address space to the new one using `vspacewritetova`.
-  - Copy and overwrite the current address space using `vspacecopy`.
   - Free the temporary address space at the end or on failure to avoid memory leaks using `vspacefree`.
   - Return 0 on success, -1 on failure.
 
@@ -50,7 +47,6 @@ We will need:
 - `vspaceloadcode` to read the program and load it into the passed in address space.
 - `vspaceinitstack` to setup and initialize the user stack.
 - `vspacewritetova` to create a deep copy of the argument from the old address space to the new one.
-- `vspacecopy` to copy the current address space to the new process.
 - `vspacefree` to free the old address space to avoid memory leaks.
 
 
