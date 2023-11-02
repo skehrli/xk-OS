@@ -130,7 +130,7 @@ int fork(void) {
   struct proc *parent = myproc();
 
   // Copy virtual address space
-  vspaceinit(&child->vspace);
+  assertm(vspaceinit(&child->vspace) == 0, "error initializing process's virtual address descriptor");
   vspacecopy(&child->vspace, &parent->vspace);
 
   // Duplicate file descriptors
@@ -161,6 +161,7 @@ int fork(void) {
   child->tf->rax = 0;
   release(&ptable.lock);
 
+  vspaceinstall(myproc());
   return child->pid;
 }
 

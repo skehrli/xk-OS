@@ -68,7 +68,7 @@ int file_dup(int fd_copy) {
     acquire(&file_table_lock);
     my_proc->files[fd] = file;
     release(&file_table_lock);
-    return 0;
+    return fd;
   }
   if (file->node == NULL)
     return -1;
@@ -80,16 +80,16 @@ int file_dup(int fd_copy) {
 }
 
 int pipe_write(int fd, char *buf, int nr_bytes) {
-  if(nr_bytes > PIPE_BUFFER_SIZE) return -1;
+  if (nr_bytes > PIPE_BUFFER_SIZE) return -1;
   struct file_info *file = myproc()->files[fd];
   struct pipe *pipe = file->pipe;
   acquire(&pipe->lock);
-  if(pipe->read_count==0) {
+  if (pipe->read_count==0) {
     release(&pipe->lock);
     return -1;
   }
   while(PIPE_BUFFER_SIZE - pipe->write_offset + pipe->read_offset < nr_bytes) {
-    if(pipe->read_count == 0) {
+    if (pipe->read_count == 0) {
       release(&pipe->lock);
       return -1;
     }
@@ -206,7 +206,7 @@ int file_close(int fd) {
     // Clean up if this is the last reference to the file_info
     if (--fi->ref_count <= 0) {
         // Release the inode if this is the last reference to it
-        if (--fi->node->ref <= 0) {
+        if (--fi->node->ref <= 0 && !fi->isPipe) {
             irelease(fi->node);
         }
 

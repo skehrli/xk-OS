@@ -141,9 +141,205 @@ int sys_open(void) {
   return file_open(file_mode, file_path);
 }
 
+/*
+ * arg0: char * [path to the executable file]
+ * arg1: char * [] [array of strings for arguments]
+ *
+ * Given a pathname for an executable file, sys_exec() runs that file
+ * in the context of the current process (e.g., with the same open file 
+ * descriptors). arg1 is an array of strings; arg1[0] is the name of the 
+ * file; arg1[1] is the first argument; arg1[n] is `\0' signalling the
+ * end of the arguments.
+ *
+ * Does not return on success; returns -1 on error
+ *
+ * Errors:
+ * arg0 points to an invalid or unmapped address
+ * there is an invalid address before the end of the arg0 string
+ * arg0 is not a valid executable file, or it cannot be opened
+ * the kernel lacks space to execute the program
+ * arg1 points to an invalid or unmapped address
+ * there is an invalid address between arg1 and the first n st arg1[n] == `\0'
+ * for any i < n, there is an invalid address between arg1[i] and the first `\0'
+ */
 int sys_exec(void) {
+  /* PASS ARGUMENTS CHECK exec_ls
+  char *path;
+  char *argv[MAXARG];
+  
+  if (argstr(0, &path) < 0 || 
+      argptr(1, (char**)&argv, sizeof(char**)) < 0) {
+    // invalid arguments
+    return -1;
+  }
+
+  int argc = 0;
+  for (char* arg = *argv; arg != NULL && !arg; arg++) {
+    if (fetchstr((uint64_t)arg, &arg) < 0) {
+      // check if the address is valid between arg1 and the first `\0'
+      return argc;
+    }
+    argc++;
+  }
+
+  return exec(path, argv);
+  */
+
+  /*
+  char *path;
+  char *argv[MAXARG];
+  
+  if (argstr(0, &path) < 0 ||  // arg0 points to an invalid or unmapped address
+      argptr(1, (char**)&argv, sizeof(char**)) < 0  // arg1 points to an invalid or unmapped address
+  ) {
+    // invalid arguments
+    return -1;
+  }
+
+  int argc = 0;
+  for (char** arg = *argv; arg != NULL; arg++) {
+    uint64_t arg_addr;
+    if (fetchint((uint64_t)&arg, &arg_addr) < 0) {
+      // check if the pointed address is valid
+      return -10;
+    }
+
+    if (fetchstr(arg_addr, &argv[argc]) < 0) {
+      // check if the address is valid between arg1 and the first `\0'
+      return argc;
+    }
+
+    int arg_addr;
+    if (fetchint((uint64_t)argv[argc], &arg_addr) < 0) {
+      // check if the pointed address is valid
+      return -1;
+    }
+    if (fetchstr((uint64_t)argv[argc], &argv[argc]) < 0) {
+      // check if the address is valid between arg1 and the first `\0'
+      return -1;
+    }
+    
+
+    if (argv[argc] == '\0') {
+      break;
+    }
+    argc++;
+  }
+
+  return exec(path, argv);
+  */
+
+  /*
+  char *path = "ls";
+  char *args[2] = {"ls", 0};
+  return exec(path, args);
+  */
+  
+  char *path; //path to executable file
+  char *args[MAXARG]; // array of strings for arguments - 1-D array of pointers to char - max constant
+
+  // arg0 points to invalid or unmapped address
+  if(argstr(0, &path) < 0)
+     return -1;
+
+  if(argptr(0, &path, strlen(path)) < 0)
+    return -1;
+ 
+  int64_t address;
+  if(argint64(1, &address) < 0)
+    return -1;
+
+  //Cycle through until null argument found
+  for(int i=0; i< MAXARG; i++) {
+    //get address of each argument
+    int aa;
+    if(fetchint((uint64_t)address + sizeof(char*)*i, &aa) < 0) //if invalid
+      return -1;
+
+    if (aa == 0) {
+      return exec(path, args);
+    }
+
+    //get argument using its address
+    if(fetchstr((uint64_t)aa, &args[i]) < 0)
+      return -1;
+
+    if(args[i] == '\0') {
+       return exec(path, args);
+    }
+  } // end for loop
+
+  return -1; //error 
+  
   // LAB2
+  /*
+  char *path;
+  char *argv[MAXARG];
+  
+  if (argstr(0, &path) < 0 || 
+      argptr(1, (char**)&argv, sizeof(char**)) < 0) {
+    // invalid arguments
+    return -1;
+  }
+  */
+  
+  /*
+  if (argstr(0, &path) < 0) {
+    // invalid arguments
+    return -1;
+  }
+
+  int rdi;
+  if (argint(1, &rdi) < 0) {
+    return -1;
+  }
+
+  int argc = 0;
+  for (int i = 0; i < MAXARG; i++) {
+    argc++;
+    int address;
+    if (fetchint(rdi + 8*i, &address) < 0 ||
+        fetchstr(address, &args[i]) < 0) {
+      // check if the address is valid between arg1 and the first `\0'
+      break;
+    }
+  }
+
+  char *argv[argc];
+  if (argptr(1, argv, sizeof(argv)) < 0) {
+    // fetch the array of pointers to char
+    return -1;
+  }
+
+  if (argv[argc-1] == '\0') {
+    return argc+1;
+  }
+
+  return *argv[argc-1];
+  */
+  
+
+  /*
+  uint64_t rdi = (uint64_t)argv[0];
+  for (int i = 0; i < MAXARG; i++) {
+    int address;
+    if(fetchint(rdi + 8*i, &address) < 0) {
+      // check if the address is valid
+      return 0;
+    }
+
+    if (fetchstr(address, &argv[i]) < 0) {
+      // check if the address is valid between arg1 and the first `\0'
+      return i;
+    }
+
+    if(argv[i] == '\0') {
+      return 10;
+    }
+  }
+
   return -1;
+  */
 }
 
 /*

@@ -617,7 +617,8 @@ void exec_ls(void) {
     assert(close(stdout) == 0);
     assert(dup(fds[1]) == stdout); // redirect pipe write end to stdout
     assert(close(fds[1]) == 0);
-    exec("ls", argv);
+    printf(stderr, "exec_ls return=%d\n", exec("ls", argv));
+    printf(stderr, "exec_ls: exec failed\n");
     error("exec_ls: exec ls failed");
   }
   assert(close(fds[1]) == 0); // close pipe write end
