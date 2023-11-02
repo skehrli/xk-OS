@@ -163,6 +163,37 @@ int sys_open(void) {
  * for any i < n, there is an invalid address between arg1[i] and the first `\0'
  */
 int sys_exec(void) {
+  char *path;
+  char *argv[MAXARG];
+
+  if (argstr(0, &path) < 0 ||  // arg0 points to an invalid or unmapped address
+      argptr(1, (char**)&argv, sizeof(char**)) < 0  // arg1 points to an invalid or unmapped address
+  ) {
+    // invalid arguments
+    return -1;
+  }
+
+  int argc = 0;
+  for (char* arg = *argv; arg != NULL; arg++) {
+    int address;
+    if (fetchint((uint64_t)arg, &address) < 0) {
+      // check if the address is valid
+      return -1;
+    }
+
+    if (address == 0) {
+      argv[argc] = '\0';
+      break;
+    }
+
+    if (fetchstr((uint64_t)arg, &arg) < 0) {
+      // check if the pointed address is valid between arg1 and the first `\0'
+      return -1;
+    }
+  }
+
+  return exec(path, argv);
+  
   /* PASS ARGUMENTS CHECK exec_ls
   char *path;
   char *argv[MAXARG];
@@ -235,6 +266,7 @@ int sys_exec(void) {
   return exec(path, args);
   */
   
+  /*
   char *path; //path to executable file
   char *args[MAXARG]; // array of strings for arguments - 1-D array of pointers to char - max constant
 
@@ -257,7 +289,8 @@ int sys_exec(void) {
       return -1;
 
     if (aa == 0) {
-      return exec(path, args);
+      args[i] = '\0';
+      break;
     }
 
     //get argument using its address
@@ -265,11 +298,12 @@ int sys_exec(void) {
       return -1;
 
     if(args[i] == '\0') {
-       return exec(path, args);
+      break;
     }
   } // end for loop
 
-  return -1; //error 
+  return exec(path, args);; //error 
+  */
   
   // LAB2
   /*

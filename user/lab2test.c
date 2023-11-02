@@ -632,6 +632,7 @@ void exec_ls(void) {
   printf(stdout, "\n------ ls output -------\n");
 
   while(read(fds[0], buf+total, 1) > 0) {
+    printf(stdout, "Reading i=%d, n=%d, total=%d\n", i, n, total);
     if (buf[total] == '\n') {
       buf[total] = '\0';
       check_ls_output(buf+i, total-i);
