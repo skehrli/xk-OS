@@ -163,6 +163,7 @@ int sys_open(void) {
  * for any i < n, there is an invalid address between arg1[i] and the first `\0'
  */
 int sys_exec(void) {
+  // LAB2
   char *path;
   char *argv[MAXARG];
 
@@ -193,79 +194,7 @@ int sys_exec(void) {
   }
 
   return exec(path, argv);
-  
-  /* PASS ARGUMENTS CHECK exec_ls
-  char *path;
-  char *argv[MAXARG];
-  
-  if (argstr(0, &path) < 0 || 
-      argptr(1, (char**)&argv, sizeof(char**)) < 0) {
-    // invalid arguments
-    return -1;
-  }
 
-  int argc = 0;
-  for (char* arg = *argv; arg != NULL && !arg; arg++) {
-    if (fetchstr((uint64_t)arg, &arg) < 0) {
-      // check if the address is valid between arg1 and the first `\0'
-      return argc;
-    }
-    argc++;
-  }
-
-  return exec(path, argv);
-  */
-
-  /*
-  char *path;
-  char *argv[MAXARG];
-  
-  if (argstr(0, &path) < 0 ||  // arg0 points to an invalid or unmapped address
-      argptr(1, (char**)&argv, sizeof(char**)) < 0  // arg1 points to an invalid or unmapped address
-  ) {
-    // invalid arguments
-    return -1;
-  }
-
-  int argc = 0;
-  for (char** arg = *argv; arg != NULL; arg++) {
-    uint64_t arg_addr;
-    if (fetchint((uint64_t)&arg, &arg_addr) < 0) {
-      // check if the pointed address is valid
-      return -10;
-    }
-
-    if (fetchstr(arg_addr, &argv[argc]) < 0) {
-      // check if the address is valid between arg1 and the first `\0'
-      return argc;
-    }
-
-    int arg_addr;
-    if (fetchint((uint64_t)argv[argc], &arg_addr) < 0) {
-      // check if the pointed address is valid
-      return -1;
-    }
-    if (fetchstr((uint64_t)argv[argc], &argv[argc]) < 0) {
-      // check if the address is valid between arg1 and the first `\0'
-      return -1;
-    }
-    
-
-    if (argv[argc] == '\0') {
-      break;
-    }
-    argc++;
-  }
-
-  return exec(path, argv);
-  */
-
-  /*
-  char *path = "ls";
-  char *args[2] = {"ls", 0};
-  return exec(path, args);
-  */
-  
   /*
   char *path; //path to executable file
   char *args[MAXARG]; // array of strings for arguments - 1-D array of pointers to char - max constant
@@ -303,76 +232,6 @@ int sys_exec(void) {
   } // end for loop
 
   return exec(path, args);; //error 
-  */
-  
-  // LAB2
-  /*
-  char *path;
-  char *argv[MAXARG];
-  
-  if (argstr(0, &path) < 0 || 
-      argptr(1, (char**)&argv, sizeof(char**)) < 0) {
-    // invalid arguments
-    return -1;
-  }
-  */
-  
-  /*
-  if (argstr(0, &path) < 0) {
-    // invalid arguments
-    return -1;
-  }
-
-  int rdi;
-  if (argint(1, &rdi) < 0) {
-    return -1;
-  }
-
-  int argc = 0;
-  for (int i = 0; i < MAXARG; i++) {
-    argc++;
-    int address;
-    if (fetchint(rdi + 8*i, &address) < 0 ||
-        fetchstr(address, &args[i]) < 0) {
-      // check if the address is valid between arg1 and the first `\0'
-      break;
-    }
-  }
-
-  char *argv[argc];
-  if (argptr(1, argv, sizeof(argv)) < 0) {
-    // fetch the array of pointers to char
-    return -1;
-  }
-
-  if (argv[argc-1] == '\0') {
-    return argc+1;
-  }
-
-  return *argv[argc-1];
-  */
-  
-
-  /*
-  uint64_t rdi = (uint64_t)argv[0];
-  for (int i = 0; i < MAXARG; i++) {
-    int address;
-    if(fetchint(rdi + 8*i, &address) < 0) {
-      // check if the address is valid
-      return 0;
-    }
-
-    if (fetchstr(address, &argv[i]) < 0) {
-      // check if the address is valid between arg1 and the first `\0'
-      return i;
-    }
-
-    if(argv[i] == '\0') {
-      return 10;
-    }
-  }
-
-  return -1;
   */
 }
 
