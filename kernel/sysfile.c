@@ -163,7 +163,6 @@ int sys_open(void) {
  * for any i < n, there is an invalid address between arg1[i] and the first `\0'
  */
 int sys_exec(void) {
-  /*
   // LAB2
   char *path;
   char *argv[MAXARG];
@@ -175,66 +174,39 @@ int sys_exec(void) {
     return -1;
   }
 
-  int argc = 0;
-  for (char* arg = *argv; arg != NULL; arg++) {
-    int address;
-    if (fetchint((uint64_t)arg, &address) < 0) {
+  // Get address of arguments array
+  int64_t argv_addr;
+  if(argint64(1, &argv_addr) < 0) {
+    return -1;
+  }
+
+  // Loop through the arguments
+  for(int i = 0; i < MAXARG; i++) {
+    // Get address of each argument
+    int addr;
+    if(fetchint((uint64_t)argv_addr + sizeof(char*) * i, &addr) < 0) {
       // check if the address is valid
       return -1;
     }
 
-    if (address == 0) {
-      argv[argc] = '\0';
+    // Check if the address is 0 because argv is NULL terminated
+    if (addr == 0) {
+      argv[i] = '\0';
       break;
     }
 
-    if (fetchstr((uint64_t)arg, &arg) < 0) {
-      // check if the pointed address is valid between arg1 and the first `\0'
+    // Get string pointed at address
+    if(fetchstr((uint64_t)addr, &argv[i]) < 0) {
       return -1;
+    }
+
+    // End of argv
+    if(argv[i] == '\0') {
+      break;
     }
   }
-  
+
   return exec(path, argv);
-  */
-
-  /*
-  */
-  char *path;
-  char *args[MAXARG];
-
-  // arg0 points to invalid or unmapped address
-  if(argstr(0, &path) < 0)
-     return -1;
-
-  if(argptr(0, &path, strlen(path)) < 0)
-    return -1;
- 
-  int64_t address;
-  if(argint64(1, &address) < 0)
-    return -1;
-
-  //Cycle through until null argument found
-  for(int i = 0; i < MAXARG; i++) {
-    //get address of each argument
-    int aa;
-    if(fetchint((uint64_t)address + sizeof(char*)*i, &aa) < 0) //if invalid
-      return -1;
-
-    if (aa == 0) {
-      args[i] = '\0';
-      break;
-    }
-
-    //get argument using its address
-    if(fetchstr((uint64_t)aa, &args[i]) < 0)
-      return -1;
-
-    if(args[i] == '\0') {
-      break;
-    }
-  } // end for loop
-
-  return exec(path, args); //error 
 }
 
 /*
