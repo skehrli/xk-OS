@@ -617,8 +617,7 @@ void exec_ls(void) {
     assert(close(stdout) == 0);
     assert(dup(fds[1]) == stdout); // redirect pipe write end to stdout
     assert(close(fds[1]) == 0);
-    printf(stderr, "exec_ls return=%d\n", exec("ls", argv));
-    printf(stderr, "exec_ls: exec failed\n");
+    exec("ls", argv);
     error("exec_ls: exec ls failed");
   }
   assert(close(fds[1]) == 0); // close pipe write end
@@ -632,7 +631,6 @@ void exec_ls(void) {
   printf(stdout, "\n------ ls output -------\n");
 
   while(read(fds[0], buf+total, 1) > 0) {
-    printf(stdout, "Reading i=%d, n=%d, total=%d\n", i, n, total);
     if (buf[total] == '\n') {
       buf[total] = '\0';
       check_ls_output(buf+i, total-i);

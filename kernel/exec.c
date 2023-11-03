@@ -132,7 +132,7 @@ int exec(char *path, char **argv) {
   // Write the arguments to the stack - OK
   uint64_t va = va_start;
   for (int arg = 0; arg < argc; arg++) {
-    int i = arg + 1;
+    //int i = arg + 1;
     
     int size = strlen(argv[arg]) + 1;
     size = (size + 7) & ~7;
@@ -144,10 +144,10 @@ int exec(char *path, char **argv) {
       return -1;
     }
 
-    user_stack[i] = va;
+    user_stack[arg+1] = va;
   }
 
-  int argv_size = sizeof(user_stack);
+  int argv_size = 8 * (argc + 2);
   va -= argv_size;
 
   // Write the arguments array to the stack - OK
@@ -156,7 +156,7 @@ int exec(char *path, char **argv) {
     return -1;
   }
 
-  vspacedumpstack(&vs);
+  //vspacedumpstack(&vs);
 
   struct vspace old_vs = myproc()->vspace;
 
@@ -168,7 +168,7 @@ int exec(char *path, char **argv) {
   p->tf->rsi = va + 8;
   p->tf->rsp = va;
 
-  vspaceinstall(p);
+  vspaceinstall(myproc());
 
   vspacefree(&old_vs);
   return 0;
