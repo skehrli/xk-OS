@@ -30,8 +30,6 @@ int main() {
   dup(0); // stdout
   dup(0); // stderr
 
-  printf(stdout, "lab2test main\n");
-
   pid = fork();
   if (pid < 0) {
     error("fork failed");
@@ -60,7 +58,6 @@ int main() {
 
 void run_test(char* test) {
   if (strcmp(test, "part1\n") == 0) {
-    printf(stdout, "lab2test part1\n");
     fork_wait_exit_basic();
     fork_wait_exit_cleanup();
     fork_wait_exit_multiple();

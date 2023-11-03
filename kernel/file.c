@@ -125,12 +125,17 @@ int pipe_read(int fd, char *buf, int nr_bytes) {
   struct file_info *file = myproc()->files[fd];
   struct pipe *pipe = file->pipe;
   acquire(&pipe->lock);
-  if(pipe->write_count == 0) {
-    nr_bytes = pipe->write_offset - pipe->read_offset;
+  
+  if (pipe->write_count == 0) {
+    int write_read_diff = pipe->write_offset - pipe->read_offset;
+    if (nr_bytes > write_read_diff) {
+      nr_bytes = write_read_diff;
+    }
     goto read;
   }
-  while(pipe->write_offset - pipe->read_offset < nr_bytes) {
-    if(pipe->write_count == 0)  {
+  
+  while (pipe->write_offset - pipe->read_offset < nr_bytes) {
+    if (pipe->write_count == 0)  {
       nr_bytes = pipe->write_offset - pipe->read_offset;
       goto read;
     }
@@ -206,7 +211,7 @@ int file_close(int fd) {
     // Clean up if this is the last reference to the file_info
     if (--fi->ref_count <= 0) {
         // Release the inode if this is the last reference to it
-        if (--fi->node->ref <= 0 && !fi->isPipe) {
+        if (--fi->node->ref <= 0) {
             irelease(fi->node);
         }
 
