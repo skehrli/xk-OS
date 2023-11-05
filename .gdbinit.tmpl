@@ -2,6 +2,10 @@ define kern
   symbol out/ELF
 end
 
+define load-prog
+  add-symbol-file out/user/_arg0 0x10000
+end
+
 define sh
   add-symbol-file out/user/_sh 0x10000
 end
