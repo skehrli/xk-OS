@@ -67,7 +67,7 @@ int sys_sbrk(void) {
     n = 0;
   }
 
-  return 0;
+  return sbrk(n);
 }
 
 int sys_sleep(void) {

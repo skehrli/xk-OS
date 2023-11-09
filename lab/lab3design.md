@@ -25,6 +25,16 @@ To improve the performance of the fork operation, we will implement a copy-on-wr
 
 ### Functions
 
+- `sbrk`:
+    - Increase the size of the heap by `n` bytes.
+    - Use `vregionaddmap` to add a new mapping to the heap region.
+    - Use `vspaceupdate` to update the actual page table entries to reflect the newly added mappings.
+    - Returns the previous end of the heap on success, and -1 on failure.
+
+### System Calls
+#### sys_sbrk
+The main goals of the `sys_*` functions is to do argument parsing and then calling the associated functions.
+
 
 ## Risk Analysis
 

@@ -247,8 +247,7 @@ int wait(void) {
 
 int sbrk(int n) {
   struct proc *my_proc = myproc();
-  struct vspace *vspace = &my_proc->vspace;
-  struct vregion *heap = &vspace->regions[VR_HEAP];
+  struct vregion *heap = &my_proc->vspace.regions[VR_HEAP];
   uint64_t old_heap_end = heap->va_base + heap->size;
 
   if (n > 0) {

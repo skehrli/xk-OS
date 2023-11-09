@@ -155,6 +155,8 @@ int wait(void);
 void wakeup(void *);
 void yield(void);
 void reboot(void);
+int sbrk(int);
+
 
 // swtch.S
 void swtch(struct context **, struct context *);
