@@ -35,6 +35,15 @@ To improve the performance of the fork operation, we will implement a copy-on-wr
     - Use `vregionaddmap` to add a new mapping to the heap region.
     - Use `vspaceupdate` to update the actual page table entries to reflect the newly added mappings.
     - Returns the previous end of the heap on success, and -1 on failure.
+- `trap`:
+    - Implement on-demand stack growth by handling page faults.
+    - Define function `grow_ustack` that allocates a new page for the user stack, which is similar to `sbrk`.
+    - If `grow_ustack` is successful, return to the instruction to resume execution, otherwise let the kernel handle the page fault.
+- `grow_ustack`:
+    - Increase the size of the user stack by one page `PGSIZE`.
+    - Use `vregionaddmap` to add a new mapping to the stack region.
+    - Use `vspaceupdate` to update the actual page table entries to reflect the newly added mappings.
+    - Returns the previous top of the stack on success, and -1 on failure.
 
 ### System Calls
 #### sys_sbrk
@@ -51,3 +60,7 @@ The main goals of the `sys_*` functions is to do argument parsing and then calli
 
 ### Time Estimation
 Best / Average / Worst case scenario
+- Functions:
+    - `sbrk`: (2/4/6 hours)
+    - `trap`: (2/4/6 hours)
+    - `cow_fork`: (4/6/8 hours)

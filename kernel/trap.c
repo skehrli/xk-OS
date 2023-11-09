@@ -80,6 +80,10 @@ void trap(struct trap_frame *tf) {
       num_page_faults += 1;
 
       // LAB3: page fault handling logic here
+      // Part 3: Grow user stack
+      if (SZ_2G - 10*PAGE_SIZE <= addr && addr < SZ_2G) {
+        if (grow_ustack() >= 0) return;
+      }
 
       if (myproc() == 0 || (tf->cs & 3) == 0) {
         // In kernel, it must be our mistake.
@@ -112,4 +116,21 @@ void trap(struct trap_frame *tf) {
   // Check if the process has been killed since we yielded
   if (myproc() && myproc()->killed && (tf->cs & 3) == DPL_USER)
     exit();
+}
+
+int grow_ustack(void) {
+  struct vspace *vspace = &myproc()->vspace;
+  struct vregion *ustack = &vspace->regions[VR_USTACK];
+
+  if (ustack->size < 10*PAGE_SIZE) {
+    uint64_t ustack_top = ustack->va_base - ustack->size - PGSIZE;  // stack grows downwards
+
+    if (vregionaddmap(ustack, ustack_top, PAGE_SIZE, VPI_PRESENT, VPI_WRITABLE) >= 0) {
+      ustack->size += PAGE_SIZE;
+      vspaceupdate(vspace);
+      return ustack_top;
+    }
+  }
+
+  return -1;
 }
