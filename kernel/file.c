@@ -21,6 +21,79 @@ struct devsw devsw[NDEV];
 static struct file_info file_table[NFILE];
 struct spinlock file_table_lock;
 
+/** Open the file specified by path in the given access mode.
+ * @param access_mode The file access mode.
+ * @param path The path to the file to open.
+ * @return The file descriptor index for the current process.
+ */ 
+int file_open(int access_mode, char *path) {
+    struct proc *my_proc = myproc(); 
+
+    // Finds an open spot in the process file table
+    int proc_ftable_index = 0;
+    while (proc_ftable_index < NOFILE && my_proc->files[proc_ftable_index] != NULL) {
+        ++proc_ftable_index;   
+    }
+
+    // Error if the process file table is full
+    if (proc_ftable_index == NOFILE) {
+        return -1;
+    }
+
+    // Finds an open entry in the global file table
+    int global_ftable_index = 0;
+    while (global_ftable_index < NFILE && file_table[global_ftable_index].ref_count != 0) {
+        ++global_ftable_index;   
+    }
+
+    struct inode *inode_ptr = iopen(path);
+
+    file_table[global_ftable_index] = (struct file_info){ 
+      .node=inode_ptr,
+      .pipe=NULL,
+      .isPipe=0,
+      .offset=0,
+      .mode=access_mode,
+      .ref_count=1,
+      .path=path,
+      .gfd=global_ftable_index
+    };
+    my_proc->files[proc_ftable_index] = &file_table[global_ftable_index];
+    
+    return proc_ftable_index;
+}
+
+int file_dup(int fd_copy) {
+  struct proc *my_proc = (struct proc *)myproc();
+  struct file_info *fi = myproc()->files[fd_copy];
+
+  // Finds an open spot in the process file table
+  int fd = -1;
+  for (int i = 0; i < NOFILE && fd == -1; i++) {
+    if (my_proc->files[i] == NULL) {
+      fd = i;
+    }
+  }
+  
+  if (fd == -1) return -1;
+
+  if (fi->isPipe) {
+    acquire(&fi->pipe->lock);
+    if(fi->mode==O_RDONLY) fi->pipe->read_count++;
+    if(fi->mode==O_WRONLY) fi->pipe->write_count++;
+    release(&fi->pipe->lock);
+  } else {
+    if (fi->node == NULL) return -1;
+  }
+
+  acquire(&file_table_lock);
+  my_proc->files[fd] = fi;
+  fi->ref_count++;
+  release(&file_table_lock);
+
+  return fd;
+}
+
 int file_stat(int fd, struct stat *stat_ptr) {
   struct proc *my_proc = (struct proc *)myproc();
   acquire(&file_table_lock);
@@ -37,46 +110,6 @@ int file_stat(int fd, struct stat *stat_ptr) {
   release(&file_table_lock);
   concurrent_stati(node, stat_ptr);
   return 0;
-}
-
-int file_dup(int fd_copy) {
-  struct proc *my_proc = (struct proc *)myproc();
-  struct file_info *file = myproc()->files[fd_copy];
-  if (file == NULL) {
-    // no open file at this descriptor
-    return -1;
-  }
-  int fd = -1;
-  for (int i = 0; i < NOFILE; i++) {
-    if (my_proc->files[i] == NULL) {
-      fd = i;
-      break;
-    }
-  }
-  if (fd == -1) {
-    return -1;
-  }
-
-  if(file->isPipe) {
-    if(file->pipe == NULL) {
-      return -1;
-    }
-    acquire(&file->pipe->lock);
-    if(file->mode==O_RDONLY) file->pipe->read_count++;
-    if(file->mode==O_WRONLY) file->pipe->write_count++;
-    release(&file->pipe->lock);
-    acquire(&file_table_lock);
-    my_proc->files[fd] = file;
-    release(&file_table_lock);
-    return fd;
-  }
-  if (file->node == NULL)
-    return -1;
-  acquire(&file_table_lock);
-  my_proc->files[fd] = file;
-  file->ref_count++;
-  release(&file_table_lock);
-  return fd;
 }
 
 int pipe_write(int fd, char *buf, int nr_bytes) {
@@ -225,56 +258,6 @@ int file_close(int fd) {
   return 0;
 }
 
-int file_open(int file_mode, char *file_path) {
-  struct proc *my_proc = (struct proc *)myproc();
-
-  struct inode *node = (struct inode *)iopen(file_path);
-  if (node == NULL) {
-    return -1;
-  }
-  if ((node->type == T_FILE) && (file_mode != O_RDONLY)) {
-    return -1;
-  }
-
-  int fd = -1;
-  for (int i = 0; i < NOFILE; i++) {
-    if (my_proc->files[i] == NULL) {
-      fd = i;
-      break;
-    }
-  }
-  if (fd == -1) {
-    return -1;
-  }
-
-  int gfd = -1;
-  acquire(&file_table_lock);
-  for (int i = 0; i < NFILE; i++) {
-    if (file_table[i].ref_count)
-      continue;
-    gfd = i;
-    break;
-  }
-  if (gfd == -1) {
-    // no free global file descriptor
-    release(&file_table_lock);
-    return -1;
-  }
-  struct file_info fi = {.node = node,
-                         .pipe = NULL,
-                         .isPipe = 0,
-                         .offset = 0,
-                         .mode = file_mode,
-                         .ref_count = 1,
-                         .path = file_path,
-                         .gfd = gfd};
-  file_table[gfd] = fi;
-  my_proc->files[fd] = &(file_table[gfd]);
-  release(&file_table_lock);
-
-  return fd;
-}
-
 int pipe(int *fd_arr) {
   struct pipe *pipe;
   if((pipe = (struct pipe *)kalloc()) == 0) {
@@ -294,6 +277,7 @@ int pipe(int *fd_arr) {
     }
   }
   if (fd_arr[1] == -1) {
+    kfree((char *) pipe);
     return -1;
   }
 
@@ -309,6 +293,7 @@ int pipe(int *fd_arr) {
   if (gfd[1] == -1) {
     // no free global file descriptor
     release(&file_table_lock);
+    kfree((char *) pipe);
     return -1;
   }
   

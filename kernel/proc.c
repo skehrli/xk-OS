@@ -133,26 +133,25 @@ int fork(void) {
   assertm(vspaceinit(&child->vspace) == 0, "error initializing process's virtual address descriptor");
   vspacecopy(&child->vspace, &parent->vspace);
 
+  // Duplicate trap frame
+  memmove(child->tf, parent->tf, sizeof(struct trap_frame));
+
   // Duplicate file descriptors
   for (int fd = 0; fd < NOFILE; fd++) {
     acquire(&ptable.lock);
     if (parent->files[fd] != NULL) {
       child->files[fd] = parent->files[fd];
-      if(child->files[fd]->isPipe) {
-        if(child->files[fd]->mode == O_RDONLY && child->files[fd]->pipe != NULL) {
+      child->files[fd]->ref_count++;
+      if (child->files[fd]->isPipe) {
+        if (child->files[fd]->mode == O_RDONLY && child->files[fd]->pipe != NULL) {
           child->files[fd]->pipe->read_count++;
         } else if(child->files[fd]->mode == O_WRONLY && child->files[fd]->pipe != NULL) {
           child->files[fd]->pipe->write_count++;
         }
-      } else {
-        child->files[fd]->ref_count++;
       }
     }
     release(&ptable.lock);
   }
-
-  // Duplicate trap frame
-  memmove(child->tf, parent->tf, sizeof(struct trap_frame));
 
   // Set child state to RUNNABLE
   acquire(&ptable.lock);
@@ -243,7 +242,24 @@ int wait(void) {
   }
   release(&ptable.lock);
 
-  return child_pid;
+  return -1;
+}
+
+int sbrk(int n) {
+  struct proc *my_proc = myproc();
+  struct vspace *vspace = &my_proc->vspace;
+  struct vregion *heap = &vspace->regions[VR_HEAP];
+  uint64_t old_heap_end = heap->va_base + heap->size;
+
+  if (n > 0) {
+    if (vregionaddmap(heap, old_heap_end, n, VPI_PRESENT, VPI_WRITABLE) < 0) {
+      return -1;
+    }
+    heap->size += n;
+  }
+  vspaceupdate(&my_proc->vspace);
+  
+  return old_heap_end;
 }
 
 // Per-CPU process scheduler.

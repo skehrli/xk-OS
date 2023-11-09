@@ -58,6 +58,15 @@ int sys_getpid(void) { return myproc()->pid; }
  */
 int sys_sbrk(void) {
   // LAB3
+  int n;
+  if (argint(0, &n) < 0) {
+    return -1;
+  }
+
+  if (n < 0) {
+    n = 0;
+  }
+
   return 0;
 }
 
