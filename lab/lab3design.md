@@ -12,7 +12,12 @@ The goal is to optimize memory usage by focusing on address space management.We 
 A user-level heap allows processes to allocate and deallocate memory at runtime. We will implement the `sbrk` system call, which increases the size of the heap by `n` bytes. It returns the previous end of the heap on success, and -1 on failure.
 
 #### Part 2: Starting shell
-The shell will be loaded from disk, and the system will boot into the shell. This involves modifying the initialization code and setting up user processes, allowing users to run commands within the shell.
+The shell will be loaded from disk, and the system will boot into the shell. `user/init.c` will fork into two processes. One will load `user/sh.c`, the other
+will wait for zombie processes to reap. This involves changing the line in `kernel/initcode.S`:
+```
+init:
+  .string "/init\0"
+```
 
 #### Part 3: Grow user stack on-demand
 We will optimize memory consumption by implementing on-demand stack growth. Instead of allocating the entire user stack at the beginning, we will allocate memory as needed. This requires handling page faults and dynamically allocate stack pages as they are needed.
