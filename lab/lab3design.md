@@ -45,17 +45,78 @@ To improve the performance of the fork operation, we will implement a copy-on-wr
     - Use `vspaceupdate` to update the actual page table entries to reflect the newly added mappings.
     - Returns the previous top of the stack on success, and -1 on failure.
 
+### Copy-on-write fork:
+The Copy-on-write fork enhancement is aimed at optimizing the fork operation by introducing a copy-on-write mechanism. It enables the parent and child processes to share the same physical memory initially, reducing memory duplication and enhancing the overall efficiency of the fork process.
+
+We need to add a bookkeeping field `cow_page` to `vpage_info` to indicate whether a page is copy-on-write. We also need to add a reference count to `core_map_entry` to keep track of the number of processes that are sharing the same physical memory.
+
+- `fork`:
+    - Allocate identical virtual space for the child process by point to corresponding physical space.
+    - Set all pages in both the child and parent virtual spaces to be read-only initially. This ensures that any attempt to write to these pages triggers a page fault.
+    - On a write attempt in child or parent, a page fault occurs.
+    - Kernel allocates a new physical address for the virtual page using `vspaceaddmap`.
+    - If the reference count for a physical page is 1, mark it as writable to enable modifications without additional page faults.
+
+- `vspacecowcopy`:
+    - Iterate through each region in the child vspace and copy the `vpage_info` pages from the corresponding parent region.
+    - Mark the page table entries as read-only for both the child and parent.
+    - Set the flag `vpi->cow_page` to true to indicate that the page is copy-on-write.
+    - Update the reference count for the physical page.
+    - Call `vspaceupdate` to ensure the child vspace is properly updated.
+
+### Page Fault Handling
+We need to distinguish between various page fault cases in `trap.c`:
+#### Copy-on-Write Fork:
+
+- Check if the faulted page is flagged as copy-on-write (`vpi->cow_page == true`).
+- Verify if the page is currently shared among multiple processes (`entry->ref_count > 1`) and is marked as unwritable (`vpi->writable == 0`).
+- If so, allocate a new physical page, copy data from the existing copy-on-write page, update reference counts, and set the page as writable for the faulting process.
+
+#### Non-writable page with only 1 reference:
+
+- Check if the faulted page is marked as copy-on-write and is the only reference to an unwritable page (`entry->ref_count == 1 && vpi->writable == 0`).
+- If true, mark the page as writable for the faulting process.
+
+#### Stack Growth on Demand:
+
+- Detect if the faulted address is within a predefined range indicating proximity to the stack boundary.
+- If true, attempt to grow the user stack using the `growuserstack` function.
+
+
 ### System Calls
 #### sys_sbrk
 The main goals of the `sys_*` functions is to do argument parsing and then calling the associated functions.
+
+#### kalloc.c
+- Update `core_map_entry` to include a refcount to store the number of processes that are sharing the same physical memory.
+- Use `kmem.lock` to protect `core_map_entry` when updating the structure.
+
+#### vspace.c
+- Use `vspaceaddmap` to add mappings between virtual and physical addresses during page fault handling. 
+
+#### vspace.h
+- Add a new field `cow_page` to `vpage_info` to indicate whether a page is copy-on-write.
+
+
+#### Helper Macros
+- `P2V` physical address to virtual address
+- `V2P` virtual address to physical address
+- `PGNUM` physical address to page number
+- `va2vpage_info` virtual address to `vpi_info`
 
 
 ## Risk Analysis
 
 ### Unanswered Questions
+- Not sure if it is correct how we handle page faults depending on the type of page fault. We don't really use the bits in `tf->err`? In which case should it be handled by the kernel / growing stack / copy-on-write fork?
 
 
 ### Staging of Work
+- Begin by implementing `sys_sbrk` to handle heap expansion.
+- Modify `trap` to handle page faults and implement on-demand stack growth.
+- Implement `vspacecowcopy` to copy the contents of the parent page to the child page similar to `vspacecopy`.
+- Change `fork` to handle copy-on-write fork.
+
 
 
 ### Time Estimation
@@ -63,4 +124,4 @@ Best / Average / Worst case scenario
 - Functions:
     - `sbrk`: (2/4/6 hours)
     - `trap`: (2/4/6 hours)
-    - `cow_fork`: (4/6/8 hours)
+    - `cow_fork`: (6/8/10 hours)
