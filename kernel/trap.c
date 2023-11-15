@@ -80,7 +80,56 @@ void trap(struct trap_frame *tf) {
       num_page_faults += 1;
 
       // LAB3: page fault handling logic here
-      // Part 3: Grow user stack
+
+      // Handle Copy-on-write
+      struct vregion *vr;
+      struct vpage_info *vpi;
+      if ((vr = va2vregion(&myproc()->vspace, addr)) != 0 && 
+          (vpi = va2vpage_info(vr, addr)) != 0
+      ) {
+
+        struct core_map_entry* entry = (struct core_map_entry *)pa2page(vpi->ppn<<PT_SHIFT);
+
+        if (vpi->cow_page && entry->ref_count > 1 && vpi->writable == 0) {
+          // Copy-on-write page fault
+          char* copy_page = kalloc();
+          if (copy_page == 0) {
+            panic("copy-on-write kalloc failed");
+          }
+
+          // Copy the page
+          memset(copy_page, 0, PGSIZE);
+          memmove(copy_page, P2V(vpi->ppn << PT_SHIFT), PGSIZE);
+
+          // Update the page table entry
+          acquire_core_map_lock();
+          vpi->used = 1;
+          vpi->ppn = PGNUM(V2P(copy_page));  // TODO: ???????? Lab3.md
+          vpi->writable = VPI_WRITABLE;  // Make the page writable again
+          vpi->present = VPI_PRESENT;    // Page is used in memory
+          vpi->cow_page = 0;  // No longer a copy-on-write page
+
+          entry->ref_count--; // Decrement the ref count because we copy the page
+          release_core_map_lock();
+
+          vspaceupdate(&myproc()->vspace);
+          vspaceinstall(myproc());
+          return;
+
+        } else if (vpi->cow_page == true && entry->ref_count == 1 && vpi->writable == 0) { 
+          // Only reference to unwritable page 
+          acquire_core_map_lock();
+          vpi->writable = VPI_WRITABLE; // Make it writable
+          vpi->cow_page = 0;            // Make it not copy-on-write
+          release_core_map_lock();
+
+          vspaceupdate(&myproc()->vspace);
+          vspaceinstall(myproc());
+          return;
+        }
+      }
+
+      // Handle Grow user stack
       if (SZ_2G - 10*PAGE_SIZE <= addr && addr < SZ_2G) {
         if (grow_ustack() >= 0) return;
       }

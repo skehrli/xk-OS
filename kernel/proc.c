@@ -131,8 +131,9 @@ int fork(void) {
 
   // Copy virtual address space
   assertm(vspaceinit(&child->vspace) == 0, "error initializing process's virtual address descriptor");
-  vspacecopy(&child->vspace, &parent->vspace);
-
+  // Copy-on-write copy doesn't copy pages but set them to read-only
+  vspacecowcopy(&child->vspace, &parent->vspace);
+  
   // Duplicate trap frame
   memmove(child->tf, parent->tf, sizeof(struct trap_frame));
 

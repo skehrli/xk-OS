@@ -98,6 +98,8 @@ void mem_init(void *);
 void mark_user_mem(uint64_t, uint64_t);
 void mark_kernel_mem(uint64_t);
 struct core_map_entry *get_random_user_page();
+void acquire_core_map_lock(void);
+void release_core_map_lock(void);
 
 // kbd.c
 void kbdintr(void);
@@ -129,6 +131,7 @@ struct vregion *va2vregion(struct vspace *, uint64_t);
 struct vpage_info *va2vpage_info(struct vregion *, uint64_t);
 int vregioncontains(struct vregion *, uint64_t, int);
 int vspacecopy(struct vspace *, struct vspace *);
+int vspacecow(struct vspace *, struct vspace *);
 int vspaceinitstack(struct vspace *, uint64_t);
 int vspacewritetova(struct vspace *, uint64_t, char *, int);
 void vspacedumpstack(struct vspace *);

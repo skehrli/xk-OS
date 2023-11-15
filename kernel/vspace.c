@@ -508,6 +508,76 @@ vspacecopy(struct vspace *dst, struct vspace *src)
   return 0;
 }
 
+/* Don't copy page. 
+ * Set the page to read-only and copy-on-write.
+ * Update the reference count of the page.
+*/
+static int
+cow_vpi_page(struct vpi_page **dst, struct vpi_page *src)
+{
+  int i;
+  struct vpage_info *srcvpi, *dstvpi;
+
+  if (!src) {
+    *dst = 0;
+    return 0;
+  }
+
+  if (!(*dst = (struct vpi_page *)kalloc())) return -1;
+
+  memset(*dst, 0, sizeof(struct vpi_page));
+  
+  // Loop through all the vpage_info in the page
+  for (int i = 0; i < VPIPPAGE; i++) {
+    srcvpi = &src->infos[i];
+    dstvpi = &(*dst)->infos[i];
+
+    // If the page is used and writable, it is a cow page (wasn't read-only before)
+    if (srcvpi->used) {
+      dstvpi->used = srcvpi->used;
+      dstvpi->present = srcvpi->present;
+      dstvpi->ppn = srcvpi->ppn;
+
+      // Set to read-only
+      dstvpi->writable = 0;
+      srcvpi->writable = 0;
+
+      // Set the cow_page flag to 1
+      dstvpi->cow_page = 1;
+      srcvpi->cow_page = 1;
+
+      // Update the reference count of the page to know how many processes are sharing it.
+      struct core_map_entry* entry = (struct core_map_entry *)pa2page(dstvpi->ppn<<PT_SHIFT);
+      acquire_core_map_lock();
+      entry->ref_count++;
+      release_core_map_lock();
+    }
+  }
+
+  return cow_vpi_page(&(*dst)->next, src->next);
+}
+
+/* Copy-on-write don't actually copy pages. Only copy the page table and set
+ * the page to read-only. 
+ * Update the reference count of the page.
+*/
+int
+vspacecowcopy(struct vspace *dst, struct vspace *src)
+{
+  struct vregion *vr;
+
+  memmove(dst->regions, src->regions, sizeof(struct vregion) * NREGIONS);
+
+  for (vr = dst->regions; vr < &dst->regions[NREGIONS]; vr++) {
+    if (cow_vpi_page(&vr->pages, vr->pages) < 0) return -1;
+  }
+
+  vspaceupdate(dst);
+  vspaceupdate(src);
+
+  vspaceinstall(dst);
+  return 0;
+}
 
 // initializes the stack region in the user's address space for the
 // given vspace beginning at start and growing down from that address.

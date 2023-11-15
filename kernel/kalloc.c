@@ -107,15 +107,22 @@ void kfree(char *v) {
 
   r = (struct core_map_entry *)pa2page(V2P(v));
 
-  pages_in_use--;
-  free_pages++;
+  if (r->ref_count > 0) {  // Multiple references to this page
+    r->ref_count--;
+  } 
+  
+  if (r->ref_count == 0) {  // No references to this page -> can be deleted
+    pages_in_use--;
+    free_pages++;
 
-  // Fill with junk to catch dangling refs.
-  memset(v, 2, PGSIZE);
+    // Fill with junk to catch dangling refs.
+    memset(v, 2, PGSIZE);
 
-  r->available = 1;
-  r->user = 0;
-  r->va = 0;
+    r->available = 1;
+    r->user = 0;
+    r->va = 0;
+  }
+
   if (kmem.use_lock)
     release(&kmem.lock);
 }
@@ -146,6 +153,8 @@ char *kalloc(void) {
   for (i = 0; i < npages; i++) {
     if (core_map[i].available == 1) {
       core_map[i].available = 0;
+      core_map[i].ref_count = 1;
+
       pages_in_use++;
       free_pages--;
       if (kmem.use_lock)
@@ -181,4 +190,12 @@ struct core_map_entry *get_random_user_page() {
     }
   }
   panic("Tried 100 random indices for random user page, all failed");
+}
+
+void acquire_core_map_lock(void) {
+  if (kmem.use_lock) acquire(&kmem.lock);
+}
+
+void release_core_map_lock(void) {
+  if (kmem.use_lock) release(&kmem.lock);
 }

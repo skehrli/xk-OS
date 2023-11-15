@@ -92,7 +92,8 @@ The main goals of the `sys_*` functions is to do argument parsing and then calli
 - Use `kmem.lock` to protect `core_map_entry` when updating the structure.
 
 #### vspace.c
-- Use `vspaceaddmap` to add mappings between virtual and physical addresses during page fault handling. 
+- Use `vspaceaddmap` to add mappings between virtual and physical addresses during page fault handling.
+- Use `vspaceupdate` to update the page table entries to reflect the newly added mappings.
 
 #### vspace.h
 - Add a new field `cow_page` to `vpage_info` to indicate whether a page is copy-on-write.

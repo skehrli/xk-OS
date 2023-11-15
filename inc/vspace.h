@@ -21,7 +21,7 @@ struct vpage_info {
   short present;  // whether the page is in physical memory
   short writable; // does the page have write permissions
   // user defined fields
-
+  int cow_page;   // is this page a copy-on-write page
 };
 
 #define VPIPPAGE ((PGSIZE/sizeof(struct vpage_info)) - 1)
