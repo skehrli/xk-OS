@@ -72,7 +72,7 @@ void bad_mem_access(void) {
   char *a;
   
   // try to access kernel memory
-  printf(stdout, "\npids 4-43 (6-45 if ran after sh) should be killed with trap 14 err 5\n");
+  printf(stdout, "\npids 2-42 (4-44 if ran after sh) should be killed with trap 14 err 5\n");
 
   for (a = (char *)(KERNBASE); a < (char *)(KERNBASE + 2000000); a += 50000) {
     pid = fork();
