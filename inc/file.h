@@ -42,7 +42,7 @@ struct inode {
   short type;
   short devid;
   uint size;
-  struct extent data;
+  struct extent data[EXTENTS];
 };
 
 // table mapping device ID (devid) to device functions

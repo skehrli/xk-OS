@@ -154,7 +154,9 @@ static void init_inodefile(int dev) {
 
   icache.inodefile.devid = di.devid;
   icache.inodefile.size = di.size;
-  icache.inodefile.data = di.data;
+  for (int i = 0; i < EXTENTS; i++) {
+    icache.inodefile.data[i] = di.data[i];
+  }
 
   brelse(b);
 }
@@ -278,7 +280,9 @@ void locki(struct inode *ip) {
     ip->devid = dip.devid;
 
     ip->size = dip.size;
-    ip->data = dip.data;
+    for (int i = 0; i < EXTENTS; i++) {
+      ip->data[i] = dip.data[i];
+    }
 
     ip->valid = 1;
 
@@ -345,12 +349,32 @@ int readi(struct inode *ip, char *dst, uint off, uint n) {
     return -1;
   if (off + n > ip->size)
     n = ip->size - off;
+  
+  // Search for the extent that contains the starting block
+  struct extent *cur_extent = ip->data;
+  int total_size_extent = 0;
+  while (total_size_extent + cur_extent->nblocks * BSIZE < off) {
+    total_size_extent += cur_extent->nblocks * BSIZE;
+    cur_extent++;
+  }
 
-  for (tot = 0; tot < n; tot += m, off += m, dst += m) {
-    bp = bread(ip->dev, ip->data.startblkno + off / BSIZE);
-    m = min(n - tot, BSIZE - off % BSIZE);
-    memmove(dst, bp->data + off % BSIZE, m);
-    brelse(bp);
+  // Offset into the extent
+  uint off_extent = off - total_size_extent;
+
+  for (tot = 0; tot < n; tot += m, off_extent += m, dst += m) {
+    // Reached the end of the extent
+    if (off_extent >= cur_extent->nblocks * BSIZE) {
+      // Move to the next extent, reset offset and m
+      cur_extent++;
+      off_extent = 0;
+      m = 0;
+    } else {
+      // Read from the current extent
+      bp = bread(ip->dev, cur_extent->startblkno + off_extent / BSIZE);
+      m = min(n - tot, BSIZE - off_extent % BSIZE);
+      memmove(dst, bp->data + off_extent % BSIZE, m);
+      brelse(bp);
+    }
   }
   return n;
 }
@@ -378,8 +402,88 @@ int writei(struct inode *ip, char *src, uint off, uint n) {
       return -1;
     return devsw[ip->devid].write(ip, src, n);
   }
-  // read-only fs, writing to inode is an error
-  return -1;
+
+  if (off + n < off) return -1;
+
+  // Determine the total capacity of the inode with all its extents
+  // and search for the extent that contains the starting block
+  int size = ip->size;
+  int capacity = 0;
+  int idx_extent = 0;
+  int total_size_extent = 0;
+
+  for (int i = 0; i < EXTENTS; i++) {
+    capacity += ip->data[i].nblocks * BSIZE;
+
+    if (off > capacity) {
+      idx_extent++;
+      total_size_extent = capacity;
+    }
+  }
+
+  // Offset into the extent
+  uint off_extent = off - total_size_extent;
+
+  int n_overwrite = size - off;
+  int n_append = off + n - size;
+  assertm(n_overwrite + n_append == n, "n_overwrite + n_append != n");
+
+  if (n_overwrite > 0) {
+    writei_file(ip, src, off_extent, n_overwrite, idx_extent);
+  }
+
+  if (n_append > 0) {
+    int n_balloc = off + n - capacity;
+    writei_append(ip, src, off_extent, n_append, n_balloc, idx_extent);
+  }
+
+  return n;
+}
+
+int writei_file(struct inode *ip, char *src, uint off_extent, uint n, int idx_extent) {
+  uint tot, m;
+  struct buf *bp;
+  struct extent *cur_extent = ip->data + idx_extent;
+
+  for (tot = 0; tot < n; tot += m, off_extent += m, src += m) {
+    // Reached the end of the extent
+    if (off_extent >= cur_extent->nblocks * BSIZE) {
+      // Move to the next extent, reset offset and m
+      cur_extent++;
+      off_extent = 0;
+      m = 0;
+    } else {
+      // Write to the current extent
+      bp = bread(ip->dev, cur_extent->startblkno + off_extent / BSIZE);
+      m = min(n - tot, BSIZE - off_extent % BSIZE);
+      memmove(bp->data + off_extent % BSIZE, src, m);
+      brelse(bp);
+    }
+  }
+}
+
+int writei_append(struct inode *ip, char *src, uint off_extent, uint n_append, int n_balloc, int idx_extent) {
+  uint tot, m;
+  struct buf *bp;
+  struct extent *cur_extent = ip->data + idx_extent;
+  int n = n_append;
+
+  if (n_balloc > 0) {
+    n += n_balloc;
+
+    // Allocate new blocks
+    int nblocks = (n_balloc-1) / BSIZE + 1;
+    int startblkno = balloc(ip->dev, nblocks);
+    int endblkno = startblkno + nblocks - 1;
+    
+    // Update inode
+    cur_extent->startblkno = startblkno;
+    cur_extent->nblocks = nblocks;
+    ip->size += n_balloc;
+  }
+
+  ip->size += n_append;
+  writei_file(ip, src, off_extent, n, idx_extent);
 }
 
 // Directories

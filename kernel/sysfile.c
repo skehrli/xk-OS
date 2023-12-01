@@ -57,15 +57,19 @@ int sys_open(void) {
     return -1;
   }
 
-  // file system is read only, any write flags for non console files are invalid
+  // (LAB1) file system is read only, any write flags for non console files are invalid
+  /* (LAB4) make file system writeable
   if (strncmp(path, "console", strlen(path)) != 0 && access_mode != O_RDONLY) {
     return -1;
   }
+  */
 
-  // O_CREATE is not permitted (for now)
+  // (LAB1) O_CREATE is not permitted
+  /* (LAB4) O_CREATE is permitted
   if (access_mode == O_CREATE) {
     return -1;
   }
+  */
 
   // file_open returns an error if 
   // already at max open files or

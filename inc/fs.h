@@ -23,12 +23,14 @@ struct superblock {
 };
 
 // On-disk inode structure
+// bytes = 2 + 2 + 4 + 30 * 8 = 248
+// pad to make it a power of 2 --> +8 --> 256
 struct dinode {
   short type;         // File type (device, directory, regular file)
   short devid;        // Device number (T_DEV only)
   uint size;          // Size of file (bytes)
-  struct extent data; // Data blocks of file on disk
-  char pad[48];       // So disk inodes fit contiguosly in a block
+  struct extent data[EXTENTS]; // Data blocks of file on disk
+  char pad[8];       // So disk inodes fit contiguosly in a block
 };
 
 // offset of inode in inodefile
