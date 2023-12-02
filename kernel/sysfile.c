@@ -53,7 +53,8 @@ int sys_open(void) {
   // arg0 points to an invalid or unmapped address or,
   // there is an invalid address before the end of the string or,
   // the file does not exist
-  if (namei(path) == NULL) {
+  // (LAB4) support file creation
+  if (namei(path) == NULL && (access_mode & 0xF00) != O_CREATE) {
     return -1;
   }
 

@@ -72,6 +72,8 @@ int namecmp(const char *, const char *);
 struct inode *namei(char *);
 struct inode *nameiparent(char *, char *);
 struct inode *iopen(char *);
+struct inode *concurrent_icreate(char *);
+struct inode *icreate(char *);
 int concurrent_readi(struct inode *, char *, uint, uint);
 int readi(struct inode *, char *, uint, uint);
 void concurrent_stati(struct inode *, struct stat *);

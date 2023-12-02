@@ -216,6 +216,7 @@ void create_large(void) {
   if ((fd = open("create_large.txt", O_CREATE | O_RDWR)) < 0) {
     error("create_large: create 'create_large.txt' failed");
   }
+  printf(stdout, "create_large: created file 'create_large.txt'\n");
 
   memset(buf, 2, sizeof(buf));
   for (i=0; i<10; i++) {
@@ -226,6 +227,7 @@ void create_large(void) {
     }
   }
   assert(close(fd) == 0);
+  printf(stdout, "create_large: wrote %d bytes to 'create_large.txt'\n", sizeof(buf));
 
   // reopen and make sure the content was written
   if ((fd = open("create_large.txt", O_RDONLY)) < 0) {

@@ -230,12 +230,60 @@ static struct inode *iget(uint dev, uint inum) {
 // looks up a path, if valid, populate its inode struct
 struct inode *iopen(char *path) {
   struct inode* inode = namei(path);
+  if (inode == NULL) {
+    inode = concurrent_icreate(path);
+  }
+
   if (inode != NULL) {
     locki(inode);
     unlocki(inode);
   }
   return inode;
 }
+
+struct inode *concurrent_icreate(char *path) {
+  struct inode *inodefile = iget(ROOTDEV, INODEFILEINO);
+  struct inode *inode;
+
+  acquiresleep(&inodefile->lock);
+  inode = icreate(path);
+  releasesleep(&inodefile->lock);
+
+  return inode;
+}
+
+struct inode *icreate(char *path) {
+  struct inode *inodefile = &icache.inodefile;
+
+  // Create a new dinode
+  struct dinode dinode;
+  dinode.type = T_FILE;
+  dinode.devid = T_DEV;
+  dinode.size = 0;
+  memset(dinode.data, 0, sizeof(dinode.data));
+
+  // inodefile is an array of dinodes, append a new dinode to the end for now
+  acquiresleep(&inodefile->lock);
+  int inum = inodefile->size / sizeof(struct dinode); 
+  writei(inodefile, (char *)&dinode, inodefile->size, sizeof(dinode));
+  inodefile->size += sizeof(dinode);
+  releasesleep(&inodefile->lock);
+
+  // Create a new directory entry and write it to the parent directory
+  char name[DIRSIZ];
+  struct inode *parent_dir = nameiparent(path, name);
+  struct dirent dirent;
+  dirent.inum = inum;
+  strncpy(dirent.name, name, DIRSIZ);
+
+  if (parent_dir == NULL) return NULL;
+  concurrent_writei(parent_dir, (char *)&dirent, parent_dir->size, sizeof(dirent));
+  parent_dir->size += sizeof(dirent);
+
+  cprintf("icreate: %s, inum %d, dirent.name %s\n", path, inum, dirent.name);
+  return iget(inodefile->dev, inum);
+}
+
 
 // Increment reference count for ip.
 // Returns ip to enable ip = idup(ip1) idiom.
@@ -463,8 +511,6 @@ int writei_file(struct inode *ip, char *src, uint off_extent, uint n, int idx_ex
 }
 
 int writei_append(struct inode *ip, char *src, uint off_extent, uint n_append, int n_balloc, int idx_extent) {
-  uint tot, m;
-  struct buf *bp;
   struct extent *cur_extent = ip->data + idx_extent;
   int n = n_append;
 
@@ -474,7 +520,6 @@ int writei_append(struct inode *ip, char *src, uint off_extent, uint n_append, i
     // Allocate new blocks
     int nblocks = (n_balloc-1) / BSIZE + 1;
     int startblkno = balloc(ip->dev, nblocks);
-    int endblkno = startblkno + nblocks - 1;
     
     // Update inode
     cur_extent->startblkno = startblkno;
