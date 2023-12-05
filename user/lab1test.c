@@ -34,7 +34,7 @@ int main() {
 
   open_basic();
   open_bad_args();
-  open_mismatch_perm(); // NOTE(lab4): comment this out once lab4 is implemented
+  //open_mismatch_perm(); // NOTE(lab4): comment this out once lab4 is implemented
 
   close_basic();
   close_bad_args();
