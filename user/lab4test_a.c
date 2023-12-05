@@ -196,6 +196,12 @@ void create_small(void) {
     error("create_small: failed to open a freshly created file 'create.txt'");
   }
 
+  struct stat st;
+  if (fstat(fd, &st) != 0) {
+    error("create_small: failed to stat 'create.txt'");
+  }
+  printf(stdout, "create_small: size %d\n", st.size);
+
   memset(buf, 0, 1);
   n = read(fd, buf, 1);
   if (n != 1) {
@@ -223,16 +229,29 @@ void create_large(void) {
     // requested write size spans 16 sectors
     n = write(fd, buf, sizeof(buf));
     if (n != sizeof(buf)) {
-      error("create_large: failed to write %d bytes to create_large.txt, wrote %d", sizeof(buf), n);
+      error("create_large: failed to write %d bytes to create_large.txt, wrote %d\n", sizeof(buf), n);
     }
   }
+
+  struct stat st;
+  if (fstat(fd, &st) != 0) {
+    error("create_large: failed to stat 'create_large.txt'");
+  }
+  printf(stdout, "create_large: after write size %d\n", st.size);
+
   assert(close(fd) == 0);
-  printf(stdout, "create_large: wrote %d bytes to 'create_large.txt'\n", sizeof(buf));
+  printf(stdout, "create_large: wrote %d bytes to 'create_large.txt'\n", 10 * sizeof(buf));
 
   // reopen and make sure the content was written
   if ((fd = open("create_large.txt", O_RDONLY)) < 0) {
     error("create_large: failed to open a freshly created file 'create_large.txt'");
   }
+  printf(stdout, "create_large: open a freshly created file 'create_large.txt'\n");
+  
+  if (fstat(fd, &st) != 0) {
+    error("create_large: failed to stat 'create_large.txt'");
+  }
+  printf(stdout, "create_large: reopen size %d\n", st.size);
 
   memset(buf, 0, sizeof(buf));
   for (i=0; i<10; i++) {
@@ -265,10 +284,12 @@ void one_file_test(void) {
     error("one_file_test: failed to create 'onefile.txt'");
   }
   assert(close(fd) == 0);
+  printf(stdout, "one_file_test: created file 'onefile.txt'\n");
 
   if ((fd = open("onefile.txt", O_RDWR)) < 0) {
     error("one_file_test: failed to open 'onefile.txt' after its creation");
   }
+  printf(stdout, "one_file_test: opened file 'onefile.txt'\n");
   memset(buf, 0, sizeof(buf));
   for (i = 0; i < 10; i++) {
     memset(buf, i, 500);
@@ -277,10 +298,12 @@ void one_file_test(void) {
     }
   }
   assert(close(fd) == 0);
+  printf(stdout, "one_file_test: wrote 5000 bytes to 'onefile.txt'\n");
 
   if ((fd = open("onefile.txt", O_RDONLY)) < 0) {
     error("one_file_test: failed to open 'onefile.txt' after its creation");
   }
+  printf(stdout, "one_file_test: opened file 'onefile.txt after its creation'\n");
   memset(buf, 0, sizeof(buf));
   for (i = 0; i < 10; i++) {
     if ((n = read(fd, buf, 500)) != 500) {

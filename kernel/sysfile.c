@@ -54,7 +54,10 @@ int sys_open(void) {
   // there is an invalid address before the end of the string or,
   // the file does not exist
   // (LAB4) support file creation
-  if (namei(path) == NULL && (access_mode & 0xF00) != O_CREATE) {
+  char name[DIRSIZ];
+  strncpy(name, path, DIRSIZ);
+  name[DIRSIZ-1] = '\0';
+  if (namei(name) == NULL && (access_mode & 0xF00) != O_CREATE) {
     return -1;
   }
 
@@ -75,7 +78,7 @@ int sys_open(void) {
   // file_open returns an error if 
   // already at max open files or
   // there is no available file descriptor
-  return file_open(access_mode, path);
+  return file_open(access_mode, name);
 }
 
 
