@@ -54,12 +54,11 @@ int sys_open(void) {
   // there is an invalid address before the end of the string or,
   // the file does not exist
   // (LAB4) support file creation
-  char name[DIRSIZ];
-  strncpy(name, path, DIRSIZ);
-  name[DIRSIZ-1] = '\0';
-  if (namei(name) == NULL && (access_mode & 0xF00) != O_CREATE) {
+  /*
+  if (namei(path) == NULL && (access_mode & 0xF00) != O_CREATE) {
     return -1;
   }
+  */
 
   // (LAB1) file system is read only, any write flags for non console files are invalid
   /* (LAB4) make file system writeable
@@ -78,7 +77,7 @@ int sys_open(void) {
   // file_open returns an error if 
   // already at max open files or
   // there is no available file descriptor
-  return file_open(access_mode, name);
+  return file_open(access_mode, path);
 }
 
 
@@ -331,7 +330,29 @@ int sys_pipe(void) {
   return pipe(fd_arr);
 }
 
+/*
+ * arg0: char * [path to the file]
+ * 
+ * Given a pathname for a file, if no process has an open reference to the
+ * file, sys_unlink() removes the file from the file system.
+ *
+ * On success, returns 0. On error, returns -1.
+ *
+ * Errors:
+ * arg0 points to an invalid or unmapped address
+ * there is an invalid address before the end of the string
+ * the file does not exist
+ * the path represents a directory or device
+ * the file currently has an open reference
+ */
 int sys_unlink(void) {
   // LAB 4
-  return -1;
+  char * path;
+
+  if (argstr(0, &path) < 0) {
+    // invalid arguments
+    return -1;
+  }
+
+  return file_unlink(path);
 }

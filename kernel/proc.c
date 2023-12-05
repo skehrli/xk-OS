@@ -206,14 +206,7 @@ int wait(void) {
   struct proc *my_proc = myproc();
 
   // Return -1 if this process has no children.
-  int has_children = 0;
-  for (int i = 0; i < NPROC && !has_children; ++i) {
-    acquire(&ptable.lock);
-    if (ptable.proc[i].parent == my_proc) {
-      has_children = 1;
-    }
-    release(&ptable.lock);
-  }
+  int has_children = get_child_number(my_proc) > 0;
 
   if (!has_children) {
     return -1;
@@ -244,6 +237,17 @@ int wait(void) {
   release(&ptable.lock);
 
   return -1;
+}
+
+int get_child_number(struct proc *p) {
+  int child_number = 0;
+  for (int i = 0; i < NPROC; ++i) {
+    if (ptable.proc[i].parent == p) {
+      child_number++;
+    }
+  }
+  cprintf("child number: %d\n", child_number);
+  return child_number;
 }
 
 int sbrk(int n) {

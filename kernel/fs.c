@@ -237,13 +237,13 @@ void update_dinode(struct inode* ip){
   read_dinode(ip->inum, &curr_dinode);
   if (ip->size != curr_dinode.size){
     curr_dinode.size = ip->size;
-    cprintf("update_dinode: size %d\n", curr_dinode.size);
+    //cprintf("update_dinode: size %d\n", curr_dinode.size);
 
     for (int i = 0; i < EXTENTS; i++) {
       if (ip->data[i].startblkno == 0) break;
       curr_dinode.data[i].startblkno = ip->data[i].startblkno;
       curr_dinode.data[i].nblocks = ip->data[i].nblocks;
-      cprintf("update_dinode: startblkno %d, nblocks %d\n", curr_dinode.data[i].startblkno, curr_dinode.data[i].nblocks);
+      //cprintf("update_dinode: startblkno %d, nblocks %d\n", curr_dinode.data[i].startblkno, curr_dinode.data[i].nblocks);
     }
 
     acquiresleep(&inodefile->lock);
@@ -257,10 +257,6 @@ void update_dinode(struct inode* ip){
 // looks up a path, if valid, populate its inode struct
 struct inode *iopen(char *path) {
   struct inode* inode = namei(path);
-  if (inode == NULL) {
-    // cprintf("=========== iopen: CREATE FILE %s ===========\n", path);
-    inode = concurrent_icreate(path);
-  }
 
   if (inode != NULL) {
     /*
@@ -313,7 +309,6 @@ struct inode *icreate(char *path) {
   // Create a new directory entry and write it to the parent directory
   char name[DIRSIZ];
   struct inode *parent_dir = nameiparent(path, name);
-  name[DIRSIZ-1] = '\0';
   struct dirent dirent;
   dirent.inum = inum;
   strncpy(dirent.name, name, DIRSIZ);
@@ -322,8 +317,69 @@ struct inode *icreate(char *path) {
   concurrent_writei(parent_dir, (char *)&dirent, parent_dir->size, sizeof(dirent));
   parent_dir->size += sizeof(dirent);
 
+  struct inode *inode = iget(inodefile->dev, inum);
+
+  locki(inode);
+  unlocki(inode);
+
   cprintf("icreate: %s, inum %d, dirent.name %s\n", path, inum, dirent.name);
-  return iget(inodefile->dev, inum);
+  return inode;
+}
+
+int iunlink(char *path) {
+  struct inode *inodefile = &icache.inodefile;
+  struct inode *inode = namei(path);
+
+  // The file does not exist
+  if (inode == NULL) {
+    cprintf("iunlink error inode is NULL: %s\n", path);
+    return -1;
+  }
+  // The path represents a directory or device
+  /*
+  if (inode->type != T_FILE) {
+    cprintf("iunlink error inode is not a file: %s\n", path);
+    return -1;
+  }
+  */
+  // The file currently has an open reference to it
+  if (inode->ref > 1) {
+    cprintf("iunlink error inode has %d open references: %s\n", inode->ref, path);
+    inode->ref--;
+    return -1;
+  }
+
+  cprintf("iunlink valid: %s, inum %d\n", path, inode->inum);
+
+  // Remove the directory entry from the parent directory
+  char name[DIRSIZ];
+  struct inode *parent_dir = nameiparent(path, name);
+  struct dirent dirent;
+  uint off;
+  for (off = 0; off < parent_dir->size; off += sizeof(dirent)) {
+    if (concurrent_readi(parent_dir, (char *)&dirent, off, sizeof(dirent)) != sizeof(dirent))
+      panic("dirlink read");
+    if (dirent.inum == 0)
+        continue;
+    if (namecmp(dirent.name, name) == 0) {
+      dirent.inum = 0;
+      concurrent_writei(parent_dir, (char *)&dirent, off, sizeof(dirent));
+      break;
+    }
+  }
+
+  // Remove the dinode from the inodefile
+  acquiresleep(&inodefile->lock);
+  struct dinode dinode;
+  read_dinode(inode->inum, &dinode);
+  dinode.type = 0;
+  writei(inodefile, (char *)&dinode, INODEOFF(inode->inum), sizeof(dinode));
+  releasesleep(&inodefile->lock);
+
+  // Release the inode
+  irelease(inode);
+
+  return 0;
 }
 
 
@@ -462,7 +518,7 @@ int readi(struct inode *ip, char *dst, uint off, uint n) {
       cur_extent++;
       off_extent = 0;
       m = 0;
-      cprintf("readi: move to next extent, off_extent %d, startblkno %d, nblocks %d\n", off_extent, cur_extent->startblkno, cur_extent->nblocks);
+      //cprintf("readi: move to next extent, off_extent %d, startblkno %d, nblocks %d\n", off_extent, cur_extent->startblkno, cur_extent->nblocks);
     } else {
       // Read from the current extent
       bp = bread(ip->dev, cur_extent->startblkno + off_extent / BSIZE);
@@ -483,8 +539,6 @@ int concurrent_writei(struct inode *ip, char *src, uint off, uint n) {
   locki(ip);
   retval = writei(ip, src, off, n);
   unlocki(ip);
-  // TODO: update dinode in inodefile if size changed
-  // update_dinode(ip);
 
   return retval;
 }
@@ -533,7 +587,7 @@ int writei(struct inode *ip, char *src, uint off, uint n) {
   }
   int n_append = off + n - size;
   //assertm(n_overwrite + n_append == n, "n_overwrite + n_append != n");
-  cprintf("writei: idx_extent %d, size %d, off %d, n %d, n_overwrite %d, n_append %d, capacity %d\n", idx_extent, size, off, n, n_overwrite, n_append, capacity);
+  //cprintf("writei: idx_extent %d, size %d, off %d, n %d, n_overwrite %d, n_append %d, capacity %d\n", idx_extent, size, off, n, n_overwrite, n_append, capacity);
 
   if (n_overwrite > 0) {
     writei_file(ip, src, off_extent, n_overwrite, idx_extent);
@@ -584,7 +638,7 @@ int writei_append(struct inode *ip, char *src, uint off_extent, uint n_append, i
     }
     
     // Update inode
-    cprintf("writei_append: allocate extent %d, nblocks %d, startblkno %d\n", idx_extent, nblocks, startblkno);
+    //cprintf("writei_append: allocate extent %d, nblocks %d, startblkno %d\n", idx_extent, nblocks, startblkno);
     cur_extent->startblkno = startblkno;
     cur_extent->nblocks = nblocks;
   }

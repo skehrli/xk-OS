@@ -47,6 +47,13 @@ int file_open(int access_mode, char *path) {
     }
 
     struct inode *inode_ptr = iopen(path);
+    if (inode_ptr == NULL && (access_mode & 0xF00) == O_CREATE) {
+        inode_ptr = concurrent_icreate(path);
+    }
+
+    if (inode_ptr == NULL) {
+        return -1;
+    }
 
     file_table[global_ftable_index] = (struct file_info){ 
       .node=inode_ptr,
@@ -242,12 +249,12 @@ int file_close(int fd) {
   } else {
 
     // Clean up if this is the last reference to the file_info
+    cprintf("file_close: ref_count = %d\n", fi->ref_count);
     if (--fi->ref_count <= 0) {
         // Release the inode if this is the last reference to it
-        if (--fi->node->ref <= 0) {
-            irelease(fi->node);
-        }
-
+        cprintf("file_close: inode ref = %d, child number %d\n", fi->node->ref, get_child_number(my_proc));
+        irelease(fi->node);
+        
         *fi = (struct file_info) { 0 };
     }
   }
@@ -323,5 +330,9 @@ int pipe(int *fd_arr) {
   myproc()->files[fd_arr[1]] = &(file_table[gfd[1]]);
   release(&file_table_lock);
   return 0;
+}
+
+int file_unlink(char *path) {
+  return iunlink(path);
 }
 

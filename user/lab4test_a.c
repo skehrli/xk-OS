@@ -423,15 +423,18 @@ void unlink_basic(void) {
     error("unlink_basic: unable to create file %s", name);
   }
   assert(close(fd) == 0);
+  printf(stdout, "unlink_basic: created file %s\n", name);
 
   if (unlink(name) < 0) {
     error("unlink_basic: unable to delete newly created file %s", name);
   }
+  printf(stdout, "unlink_basic: deleted file %s\n", name);
 
   fd = open(name, O_RDWR);
   if (fd != -1) {
     error("unlink_basic: able to reopen deleted file %s", name);
   }
+  printf(stdout, "unlink_basic: did not reopen deleted file %s\n", name);
 
   pass("");
 }
@@ -448,19 +451,23 @@ void unlink_open(void) {
   if (fd < 0) {
     error("unlink_open: unable to create file %s", name);
   }
+  printf(stdout, "unlink_open: created file %s\n", name);
 
   if (unlink(name) != -1) {
     error("unlink_open: able to delete file that's still open");
   }
+  printf(stdout, "unlink_open: did not delete file %s while it's open\n", name);
 
   if (close(fd) == -1) {
     error("unlink_open: unable to close file");
   }
+  printf(stdout, "unlink_open: closed file %s\n", name);
 
   fd = open(name, O_RDWR);
   if (fd < 0) {
     error("unlink_open: unable to open newly created file %s", name);
   }
+  printf(stdout, "unlink_open: reopened file %s\n", name);
 
   pid = fork();
   if (pid < 0) {

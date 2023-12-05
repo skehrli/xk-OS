@@ -74,6 +74,7 @@ struct inode *nameiparent(char *, char *);
 struct inode *iopen(char *);
 struct inode *concurrent_icreate(char *);
 struct inode *icreate(char *);
+int iunlink(char *);
 int concurrent_readi(struct inode *, char *, uint, uint);
 int readi(struct inode *, char *, uint, uint);
 void concurrent_stati(struct inode *, struct stat *);
@@ -81,7 +82,7 @@ void stati(struct inode *, struct stat *);
 int concurrent_writei(struct inode *, char *, uint, uint);
 int writei(struct inode *, char *, uint, uint);
 int writei_file(struct inode *, char *, uint, uint, int);
-int writei_append();
+int writei_append(struct inode *, char *, uint, uint, int, int);
 
 // ide.c
 void ideinit(void);
@@ -163,6 +164,7 @@ void wakeup(void *);
 void yield(void);
 void reboot(void);
 int sbrk(int);
+int get_child_number(struct proc *);
 
 
 // swtch.S
@@ -223,3 +225,4 @@ int file_read(int, char *, int);
 int file_write(int, char *, int);
 int file_dup(int);
 int file_stat(int, struct stat *);
+int file_unlink(char *);
