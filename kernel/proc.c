@@ -246,7 +246,7 @@ int get_child_number(struct proc *p) {
       child_number++;
     }
   }
-  cprintf("child number: %d\n", child_number);
+  //cprintf("child number: %d\n", child_number);
   return child_number;
 }
 

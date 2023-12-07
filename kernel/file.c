@@ -148,8 +148,10 @@ int file_write(int fd, char *buf, int nr_bytes) {
   if (file == NULL) {
     return -1;
   }
-  if (file->mode == O_RDONLY)
+  if (file->mode == O_RDONLY) {
     return -1;
+  }
+
   if(file->isPipe) {
     return pipe_write(fd, buf, nr_bytes);
   }
@@ -249,12 +251,12 @@ int file_close(int fd) {
   } else {
 
     // Clean up if this is the last reference to the file_info
-    cprintf("file_close: ref_count = %d\n", fi->ref_count);
+    // cprintf("file_close: ref_count = %d\n", fi->ref_count);
     if (--fi->ref_count <= 0) {
         // Release the inode if this is the last reference to it
-        cprintf("file_close: inode ref = %d, child number %d\n", fi->node->ref, get_child_number(my_proc));
         irelease(fi->node);
-        
+        cprintf("file_close: inode ref = %d\n", fi->node->ref);
+          
         *fi = (struct file_info) { 0 };
     }
   }

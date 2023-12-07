@@ -274,7 +274,9 @@ struct inode *iopen(char *path) {
     */
     locki(inode);
     unlocki(inode);
+    cprintf("iopen: %s, inum %d\n", path, inode->inum);
   }
+
   return inode;
 }
 
@@ -295,16 +297,71 @@ struct inode *icreate(char *path) {
   // Create a new dinode
   struct dinode dinode;
   dinode.type = T_FILE;
-  dinode.devid = T_DEV;
+  dinode.devid = 0;
   dinode.size = 0;
   memset(dinode.data, 0, sizeof(dinode.data));
 
-  // inodefile is an array of dinodes, append a new dinode to the end for now
+  /*
+  cprintf("icreate: %s, inums ,", path);
+  acquire(&icache.lock);
+  for (int i = 0; i < NINODE; i++) {
+    cprintf("%d, ", icache.inode[i].inum);
+  }
+  release(&icache.lock);
+  cprintf("\n");
+  */
+
+  // Search for the first inode in inodefile that is not in use
+  /*
+  int inum = 0;
+  acquire(&icache.lock);
+  while (inum < NINODE && icache.inode[inum].size > 0) {
+    inum++;
+  }
+  release(&icache.lock);
+  */
+ /*
+  inum = inodefile->size / sizeof(dinode);
+  acquire(&icache.lock);
+  while (icache.inode[inum].size != -1 && inum > 34) {
+    cprintf("search inum: inum %d, size %d\n", inum, icache.inode[inum-1].size);
+    inum--;
+  }
+  release(&icache.lock);
+ */
+
+  /*
   acquiresleep(&inodefile->lock);
-  int inum = inodefile->size / sizeof(struct dinode); 
-  writei(inodefile, (char *)&dinode, inodefile->size, sizeof(dinode));
-  inodefile->size += sizeof(dinode);
+  int inum = inodefile->size / sizeof(dinode);
+  if (inum >= 35 && icache.inode[35].size == -1) {
+    inum = 35;
+  }
+  writei(inodefile, (char *)&dinode, INODEOFF(inum), sizeof(dinode));
   releasesleep(&inodefile->lock);
+  if (inum >= inodefile->size / sizeof(dinode)) {
+    inodefile->size += sizeof(dinode);
+  }
+  */
+
+  // inodefile is an array of dinodes
+  acquiresleep(&inodefile->lock);
+  // Search for the first inode in inodefile that is not in use
+  int inum = inodefile->size / sizeof(dinode);
+  for (int i = 0; i < NINODE; i++) {
+    struct dinode dinode;
+    read_dinode(i, &dinode);
+    //cprintf("searching for inum: i %d, size %d\n", i, dinode.size);
+
+    if (dinode.size == -1) {
+      inum = i;
+      break;
+    }
+  }
+  writei(inodefile, (char *)&dinode, INODEOFF(inum), sizeof(dinode));
+  releasesleep(&inodefile->lock);
+  if (inum >= inodefile->size / sizeof(dinode)) {
+    inodefile->size += sizeof(dinode);
+  }
 
   // Create a new directory entry and write it to the parent directory
   char name[DIRSIZ];
@@ -322,7 +379,7 @@ struct inode *icreate(char *path) {
   locki(inode);
   unlocki(inode);
 
-  cprintf("icreate: %s, inum %d, dirent.name %s\n", path, inum, dirent.name);
+  cprintf("icreate END: %s, inum %d ,", path, inum);
   return inode;
 }
 
@@ -342,10 +399,12 @@ int iunlink(char *path) {
     return -1;
   }
   */
+
+  inode->ref--;  // namei() incremented ref, undo that
+  
   // The file currently has an open reference to it
-  if (inode->ref > 1) {
+  if (inode->ref > 0) {
     cprintf("iunlink error inode has %d open references: %s\n", inode->ref, path);
-    inode->ref--;
     return -1;
   }
 
@@ -373,11 +432,15 @@ int iunlink(char *path) {
   struct dinode dinode;
   read_dinode(inode->inum, &dinode);
   dinode.type = 0;
+  dinode.size = -1;
+  for (int i = 0; i < EXTENTS; i++) {
+    dinode.data[i].startblkno = 0;
+    dinode.data[i].nblocks = 0;
+  }
+  cprintf("iunlink: set dinode %d size to -1\n", inode->inum);
   writei(inodefile, (char *)&dinode, INODEOFF(inode->inum), sizeof(dinode));
   releasesleep(&inodefile->lock);
 
-  // Release the inode
-  irelease(inode);
 
   return 0;
 }
@@ -556,7 +619,10 @@ int writei(struct inode *ip, char *src, uint off, uint n) {
     return devsw[ip->devid].write(ip, src, n);
   }
 
-  if (off + n < off) return -1;
+  if (off + n < off) {
+    cprintf("writei: error off + n < off\n");
+    return -1;
+  }
 
   // Determine the total capacity of the inode with all its extents
   // and search for the extent that contains the starting block

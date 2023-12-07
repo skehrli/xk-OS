@@ -178,11 +178,13 @@ void create_small(void) {
     error("create_small: create 'create.txt' failed");
   }
   assert(close(fd) == 0);
+  printf(stdout, "create_small: created file 'create.txt'\n");
 
   // Reopen and write 1 byte.
   if ((fd = open("create.txt", O_RDWR)) < 0) {
     error("create_small: failed to open a freshly created file 'create.txt'");
   }
+  printf(stdout, "create_small: reopened file 'create.txt'\n");
 
   memset(buf, 1, 1);
   n = write(fd, buf, 1);
@@ -190,17 +192,19 @@ void create_small(void) {
     error("create_small: error writing to the created file");
   }
   assert(close(fd) == 0);
+  printf(stdout, "create_small: wrote 1 byte to 'create.txt'\n");
 
   // reopen and read 1 byte, file already exists, should not allocate a new file
   if ((fd = open("create.txt", O_CREATE | O_RDONLY)) < 0) {
     error("create_small: failed to open a freshly created file 'create.txt'");
   }
+  printf(stdout, "create_small: reopened file 'create.txt'\n");
 
   struct stat st;
   if (fstat(fd, &st) != 0) {
     error("create_small: failed to stat 'create.txt'");
   }
-  printf(stdout, "create_small: size %d\n", st.size);
+  printf(stdout, "create_small: reopen size %d\n", st.size);
 
   memset(buf, 0, 1);
   n = read(fd, buf, 1);
@@ -210,6 +214,7 @@ void create_small(void) {
   // ensure read got the correct value.
   assert(buf[0] == 1);
   assert(close(fd) == 0);
+  printf(stdout, "create_small: read 1 byte from 'create.txt'\n");
 
   pass("");
 }
@@ -530,6 +535,7 @@ void unlink_inum_reuse(void) {
     inums[i] = ss.ino;
     assert(close(fds[i]) == 0);
   }
+  printf(stdout, "unlink_inum_reuse: created 4 files\n");
 
   // check inum is allocated in order
   for (i=0; i<3; i++) {
@@ -538,21 +544,25 @@ void unlink_inum_reuse(void) {
         but got %d and %d instead", names[i], names[i+1], inums[i], inums[i+1]);
     }
   }
+  printf(stdout, "unlink_inum_reuse: inodes allocated in order\n");
 
   // unlink a file and create a new file to test for inum reuse
   if (unlink(names[1]) < 0) {
     error("unlink_inum_reuse: failed to unlinked file %s", names[1]);
   }
+  printf(stdout, "unlink_inum_reuse: unlinked file %s\n", names[1]);
 
   fd = open("new_file", O_RDWR | O_CREATE);
   if (fd < 0) {
     error("unlink_inum_reuse: unable to create new_file");
   }
   assert(fstat(fd, &ss) == 0);
+  printf(stdout, "unlink_inum_reuse: created new_file\n");
   
   if (ss.ino != inums[1]) {
     error("unlink_inum_reuse: failed to reuse inode %d, newly created file has inum %d", inums[1], ss.ino);
   }
+  printf(stdout, "unlink_inum_reuse: reused inode %d\n", inums[1]);
 
   assert(close(fd) == 0);
   assert(unlink("new_file") == 0);
