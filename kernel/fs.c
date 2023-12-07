@@ -234,6 +234,7 @@ void update_dinode(struct inode* ip){
   struct inode *inodefile = &icache.inodefile;
   struct dinode curr_dinode;
 
+  acquiresleep(&inodefile->lock);
   read_dinode(ip->inum, &curr_dinode);
   if (ip->size != curr_dinode.size){
     curr_dinode.size = ip->size;
@@ -246,12 +247,11 @@ void update_dinode(struct inode* ip){
       //cprintf("update_dinode: startblkno %d, nblocks %d\n", curr_dinode.data[i].startblkno, curr_dinode.data[i].nblocks);
     }
 
-    acquiresleep(&inodefile->lock);
     if (writei(inodefile, (char *) &curr_dinode, INODEOFF(ip->inum), sizeof(curr_dinode)) < 0) {
         //cprintf("update_dinode: inodefile write failed\n");
     }
-    releasesleep(&inodefile->lock);
   }
+  releasesleep(&inodefile->lock);
 }
 
 // looks up a path, if valid, populate its inode struct
@@ -658,12 +658,14 @@ int writei_append(struct inode *ip, char *src, uint off_extent, uint n_append, i
     int startblkno = balloc(ip->dev, nblocks);
 
     // The inode has already an extent at idx_extent, move to the next extent
+    int allocated_extent = idx_extent;
     while (cur_extent->nblocks != 0) {
+      allocated_extent++;
       cur_extent++;
     }
     
     // Update inode
-    //cprintf("writei_append: allocate extent %d, nblocks %d, startblkno %d\n", idx_extent, nblocks, startblkno);
+    cprintf("writei_append: allocate %d bytes for extent %d, nblocks %d, startblkno %d\n", n_balloc, allocated_extent, nblocks, startblkno);
     cur_extent->startblkno = startblkno;
     cur_extent->nblocks = nblocks;
   }
