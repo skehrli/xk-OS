@@ -255,7 +255,7 @@ int file_close(int fd) {
     if (--fi->ref_count <= 0) {
         // Release the inode if this is the last reference to it
         irelease(fi->node);
-        cprintf("file_close: inode ref = %d\n", fi->node->ref);
+        //cprintf("file_close: inode ref = %d\n", fi->node->ref);
           
         *fi = (struct file_info) { 0 };
     }
