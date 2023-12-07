@@ -392,6 +392,8 @@ int iunlink(char *path) {
   read_dinode(inode->inum, &dinode);
   dinode.size = -1;
   for (int i = 0; i < EXTENTS; i++) {
+    if (dinode.data[i].startblkno == 0) break;
+    bfree(inode->dev, dinode.data[i].startblkno, dinode.data[i].nblocks);
     dinode.data[i].startblkno = 0;
     dinode.data[i].nblocks = 0;
   }
