@@ -234,7 +234,6 @@ void update_dinode(struct inode* ip){
   struct inode *inodefile = &icache.inodefile;
   struct dinode curr_dinode;
 
-  acquiresleep(&inodefile->lock);
   read_dinode(ip->inum, &curr_dinode);
   if (ip->size != curr_dinode.size){
     curr_dinode.size = ip->size;
@@ -251,7 +250,6 @@ void update_dinode(struct inode* ip){
         //cprintf("update_dinode: inodefile write failed\n");
     }
   }
-  releasesleep(&inodefile->lock);
 }
 
 // looks up a path, if valid, populate its inode struct
@@ -392,8 +390,9 @@ int iunlink(char *path) {
   read_dinode(inode->inum, &dinode);
   dinode.size = -1;
   for (int i = 0; i < EXTENTS; i++) {
-    if (dinode.data[i].startblkno == 0) break;
-    bfree(inode->dev, dinode.data[i].startblkno, dinode.data[i].nblocks);
+    if (dinode.data[i].nblocks != 0) {
+      bfree(inode->dev, dinode.data[i].startblkno, dinode.data[i].nblocks);
+    }
     dinode.data[i].startblkno = 0;
     dinode.data[i].nblocks = 0;
   }
@@ -558,9 +557,11 @@ int readi(struct inode *ip, char *dst, uint off, uint n) {
 int concurrent_writei(struct inode *ip, char *src, uint off, uint n) {
   int retval;
 
+  acquiresleep(&icache.inodefile.lock);
   locki(ip);
   retval = writei(ip, src, off, n);
   unlocki(ip);
+  releasesleep(&icache.inodefile.lock);
 
   return retval;
 }
@@ -672,9 +673,7 @@ int writei_append(struct inode *ip, char *src, uint off_extent, uint n_append, i
 
   ip->size += n_append;
   // TODO: update dinode in inodefile
-  unlocki(ip);
   update_dinode(ip);
-  locki(ip);
   writei_file(ip, src, off_extent, n_append, idx_extent);
 }
 
