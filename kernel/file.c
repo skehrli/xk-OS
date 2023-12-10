@@ -48,7 +48,9 @@ int file_open(int access_mode, char *path) {
 
     struct inode *inode_ptr = iopen(path);
     if (inode_ptr == NULL && (access_mode & 0xF00) == O_CREATE) {
+        acquiresleep(&file_table[global_ftable_index].lock);
         inode_ptr = concurrent_icreate(path);
+        releasesleep(&file_table[global_ftable_index].lock);
     }
 
     if (inode_ptr == NULL) {
@@ -155,7 +157,11 @@ int file_write(int fd, char *buf, int nr_bytes) {
   if(file->isPipe) {
     return pipe_write(fd, buf, nr_bytes);
   }
+
+  acquiresleep(&file->lock);
   int offset = concurrent_writei(file->node, buf, file->offset, nr_bytes);
+  releasesleep(&file->lock);
+
   acquire(&file_table_lock);
   my_proc->files[fd]->offset += offset;
   release(&file_table_lock);
@@ -203,7 +209,10 @@ int file_read(int fd, char *buf, int nr_bytes) {
   if(fi->isPipe) {
     return pipe_read(fd, buf, nr_bytes);
   }
+  acquiresleep(&fi->lock);
   int offset = concurrent_readi(fi->node, buf, fi->offset, nr_bytes);
+  releasesleep(&fi->lock);
+
   acquire(&file_table_lock);
   my_proc->files[fd]->offset += offset;
   release(&file_table_lock);
@@ -252,6 +261,7 @@ int file_close(int fd) {
 
     // Clean up if this is the last reference to the file_info
     // cprintf("file_close: ref_count = %d\n", fi->ref_count);
+    acquiresleep(&fi->lock);
     if (--fi->ref_count <= 0) {
         // Release the inode if this is the last reference to it
         irelease(fi->node);
@@ -259,6 +269,7 @@ int file_close(int fd) {
           
         *fi = (struct file_info) { 0 };
     }
+    releasesleep(&fi->lock);
   }
   release(&file_table_lock);
 

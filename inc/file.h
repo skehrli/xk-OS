@@ -8,6 +8,7 @@
 // an abstraction on top of inodes
 // allows for an I/O interface for user processes
 struct file_info {
+  struct sleeplock lock;
   struct inode *node;
   struct pipe *pipe;
   int isPipe;

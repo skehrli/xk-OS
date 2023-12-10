@@ -720,7 +720,7 @@ int writei_append(struct inode *ip, char *src, int off_extent, int n_append, int
     }
     
     // Update inode
-    //cprintf("writei_append: INUM %d, allocate %d bytes for extent %d, nblocks %d, startblkno %d\n", ip->inum, n_balloc, allocated_extent, nblocks, startblkno);
+    cprintf("writei_append: INUM %d, allocate %d bytes for extent %d, nblocks %d, startblkno %d\n", ip->inum, n_balloc, allocated_extent, nblocks, startblkno);
     cur_extent->startblkno = startblkno;
     cur_extent->nblocks = nblocks;
   }
