@@ -81,8 +81,8 @@ void concurrent_stati(struct inode *, struct stat *);
 void stati(struct inode *, struct stat *);
 int concurrent_writei(struct inode *, char *, uint, uint);
 int writei(struct inode *, char *, uint, uint);
-int writei_file(struct inode *, char *, uint, uint, int);
-int writei_append(struct inode *, char *, uint, uint, int, int);
+int writei_file(struct inode *, char *, int, int, int);
+int writei_append(struct inode *, char *, int, int, int, int);
 
 // ide.c
 void ideinit(void);
